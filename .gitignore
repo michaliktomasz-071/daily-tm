@@ -1,0 +1,11 @@
+# Lokalne ustawienia narzędzi (nie współdzielimy ich w repozytorium)
+.claude/settings.local.json
+
+# Pliki systemowe
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logi / pliki tymczasowe
+*.log
+*.tmp

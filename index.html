@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DAILY TM</title>
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- React + Babel z CDN (brak kroku budowania) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f4f4;
+      --fg: #363632;
+      --muted: #8a8a8a;
+      --line: #ececec;
+      --chip: #f2f2f2;
+      --page: #f4f4f4;
+      --card: #f4f4f4;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0e0e0e;
+      --fg: #f4f4f4;
+      --muted: #8f8f8f;
+      --line: #272727;
+      --chip: #1c1c1c;
+      --page: #000000;
+      --card: #161616;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; background: var(--page); }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+    }
+    #root {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--bg);
+      box-shadow: 0 0 40px rgba(0,0,0,0.06);
+    }
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+    .screen { flex: 1; padding: 28px 22px 40px; animation: fade .18s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+
+    /* Typografia */
+    .h1 { font-size: 40px; font-weight: 800; letter-spacing: -1.2px; line-height: 1.05; margin: 0; }
+    .h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+    .sub { color: var(--muted); font-size: 15px; margin: 6px 0 0; }
+
+    /* Top bar */
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px; }
+    .iconbtn {
+      border: none; background: transparent; cursor: pointer; color: var(--fg);
+      width: 40px; height: 40px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
+      font-size: 22px; transition: background .15s;
+    }
+    .iconbtn:hover { background: var(--chip); }
+    .iconbtn.muted { color: var(--muted); }
+    .iconbtn.muted:hover { color: var(--fg); }
+
+    /* Logo (kwadrat D.) */
+    .brand {
+      color: var(--fg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand-row { display:flex; align-items:center; gap: 10px; }
+    .theme-row { display:flex; align-items:center; gap: 2px; }
+
+    /* Lista wpisów */
+    .group-label { font-size: 13px; font-weight: 800; letter-spacing: .5px; color: var(--fg); margin: 26px 2px 10px; display:flex; align-items:center; gap:8px; }
+    .entry {
+      border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px;
+      margin-bottom: 10px; cursor: pointer; transition: transform .12s, box-shadow .15s;
+      background: var(--card); display: flex; align-items: center; gap: 14px;
+    }
+    .entry:active { transform: scale(.99); }
+    .entry:hover { box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+    .entry-icon {
+      flex: none; width: 44px; height: 44px; border-radius: 12px;
+      border: 1.5px solid var(--line); color: var(--fg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .entry-mid { flex: 1; min-width: 0; display:flex; flex-direction:column; gap: 2px; }
+    .entry-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .entry-snippet { color: var(--muted); font-size: 13.5px; margin: 0; line-height: 1.35;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .entry-right { flex: none; display:flex; flex-direction:column; align-items:flex-end; gap: 6px; color: var(--muted); }
+    .entry-right .date { font-size: 11px; }
+    .entry-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top: 10px; }
+
+    .chip {
+      background: var(--chip); border-radius: 999px; padding: 6px 12px; font-size: 12.5px;
+      font-weight: 600; display:inline-flex; align-items:center; gap:6px; border: none; color: var(--fg);
+    }
+    .chip.removable { cursor: pointer; }
+    .chip .x { color: var(--muted); font-weight: 700; }
+
+    /* Pola formularza */
+    .field { margin-top: 22px; }
+    .label { font-size: 13px; font-weight: 700; letter-spacing: .3px; color: var(--muted); margin-bottom: 8px; display:block; }
+    input.text, textarea.text {
+      width: 100%; border: none; outline: none; background: transparent; color: var(--fg);
+      font-family: inherit; resize: none; padding: 0;
+    }
+    input.title-input { font-size: 26px; font-weight: 800; letter-spacing: -.6px; }
+    input.title-input::placeholder { color: #cfcfcf; }
+    textarea.body-input { font-size: 17px; line-height: 1.5; min-height: 160px; }
+    textarea.body-input::placeholder { color: #cfcfcf; }
+    .divider { height: 1px; background: var(--line); margin: 18px 0 0; }
+
+    /* Mood selector */
+    .mood-row { display:flex; justify-content:space-between; gap: 8px; }
+    .mood {
+      flex:1; aspect-ratio: 1 / .82; border: 1px solid var(--line); border-radius: 14px; background:var(--card);
+      display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all .14s;
+    }
+    .mood.active { background: var(--fg); border-color: var(--fg); }
+    .mood.active svg { stroke: var(--bg); }
+    .mood svg { stroke: var(--fg); }
+
+    /* Forma / Widok wpisu — nowy układ */
+    .form-meta { margin-top: 14px; }
+    .meta-label { font-size: 15px; font-weight: 400; color: var(--muted); line-height: 1; }
+    .meta-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 24px; gap: 12px;
+    }
+    .meta-date { font-size: 11px; color: var(--muted); line-height: 1; }
+    .phase-chip {
+      display:inline-flex; align-items:center; gap: 8px;
+      font-size: 11px; color: var(--muted); font-weight: 400; line-height: 1;
+    }
+    .phase-chip svg { display:block; }
+    .title-big { font-size: 20px; font-weight: 800; letter-spacing: -.4px; margin: 22px 0 0; line-height: 1.2; }
+    .body-text { font-size: 16px; line-height: 1.55; color: var(--fg); white-space: pre-wrap; margin: 14px 0 0; }
+    .body-text.muted { color: var(--muted); }
+
+    .moods-line { display:flex; align-items:center; gap: 10px; flex-wrap:wrap; }
+    .moods-line.stack { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .moods-line .label { color: var(--fg); font-weight: 700; font-size: 14px; margin-right: 4px; }
+    .moods-line .icons { display:flex; gap: 10px; flex-wrap: wrap; }
+    .mood-btn {
+      width: 36px; height: 36px; border-radius: 999px; border: 1.5px solid var(--line);
+      background: var(--card); color: var(--fg); cursor: pointer;
+      display:flex; align-items:center; justify-content:center; transition: all .14s;
+      padding: 0;
+    }
+    .mood-btn.active { background: #ffffff; color: var(--fg); }
+
+    .tags-line { display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
+    .tags-line .label { color: var(--fg); font-weight: 700; font-size: 14px; margin-right: 4px; }
+
+    .view-bottom {
+      display:flex; align-items:center; gap: 12px; flex-wrap:wrap;
+      margin-top: 28px;
+    }
+    .view-bottom .moodwrap {
+      width: 36px; height: 36px; border-radius: 999px; border: 1.5px solid var(--line);
+      display:flex; align-items:center; justify-content:center; color: var(--fg);
+    }
+    .view-bottom .nastroj { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+    /* Tagi input */
+    .tag-input-row { display:flex; gap:8px; align-items:center; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+    .tag-input-row input { flex:1; }
+    .add-tag-btn { background: var(--fg); color:#fff; border:none; border-radius: 999px; width: 30px; height: 30px; font-size: 18px; cursor:pointer; line-height: 1; }
+
+    /* Auto-meta box */
+    .auto-box { display:flex; gap:10px; margin-top: 18px; }
+    .auto-card { flex:1; border:1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+    .auto-card .k { font-size: 11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color: var(--muted); }
+    .auto-card .v { font-size: 15px; font-weight: 700; margin-top: 4px; display:flex; align-items:center; gap:8px; }
+
+    /* Przyciski główne */
+    .btn {
+      width: 100%; border: none; border-radius: 14px; padding: 17px; font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.99); }
+    .btn-primary { background: var(--fg); color: var(--bg); }
+    .btn-primary:disabled { background: #d6d6d6; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-danger { background: transparent; color: #d11; border: 1px solid #f0caca; }
+    .sticky-bottom { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 22%); padding-top: 18px; margin-top: 8px; }
+
+    /* FAB — przypięty do dołu ekranu */
+    .fab {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      width: 60px; height: 60px; border-radius: 50%; background: var(--fg); color:var(--bg);
+      border:none; font-size: 30px; cursor:pointer; box-shadow: 0 8px 24px rgba(0,0,0,.25); line-height: 1;
+      display:flex; align-items:center; justify-content:center; z-index: 20;
+      transition: transform .1s;
+    }
+    .fab:active { transform: translateX(-50%) scale(.96); }
+    /* odstęp, by ostatnie wpisy nie chowały się pod FAB */
+    .list-bottom-pad { height: 96px; }
+
+    /* Sort menu */
+    .sort-row { display:flex; gap:8px; margin: 4px 0 4px; }
+    .sort-btn {
+      border: 1px solid var(--line); background:var(--card); border-radius: 999px; padding: 8px 14px;
+      font-size: 13px; font-weight: 700; cursor: pointer; color: var(--muted); font-family: inherit;
+    }
+    .sort-btn.active { background: var(--fg); color:var(--bg); border-color: var(--fg); }
+
+    /* Belka tagów (filtr) + chipy wyboru */
+    .tagbar {
+      display:flex; gap:8px; overflow-x:auto; padding: 2px 0 6px;
+      margin-top: 16px; scrollbar-width:none; scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tagbar::-webkit-scrollbar { display:none; }
+    .tag-pill {
+      flex:none; border: 1px solid var(--line); background: #ffffff; border-radius: 999px;
+      padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--fg);
+      font-family: inherit; white-space: nowrap; transition: all .14s;
+      display: inline-flex; align-items: center; gap: 6px;
+      scroll-snap-align: start;
+    }
+    .tag-pill svg { color: var(--muted); }
+    .tag-pill.active { border-color: var(--fg); border-width: 1.5px; padding: 6px 13px; font-weight: 700; }
+    .tag-pill.select { color: var(--muted); }
+    .tag-pill.select.active { color: var(--fg); }
+    .tag-pill.add { width: 34px; height: 34px; padding: 0; justify-content: center; color: var(--fg); }
+    .tag-pill.add svg { color: var(--fg); }
+
+    /* Empty state */
+    .empty { padding: 30px 2px 20px; color: var(--fg); }
+    .empty-text {
+      font-size: 44pt; font-weight: 300; letter-spacing: -1.2px; line-height: 1.1; margin: 0;
+      background: linear-gradient(180deg, #363632 0%, #b8b8b4 100%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+
+    /* Podgląd */
+    .view-moon { font-size: 22px; }
+    .view-meta { color: var(--muted); font-size: 14px; margin-top: 10px; display:flex; flex-wrap:wrap; gap: 14px; align-items:center; }
+    .view-body { font-size: 18px; line-height: 1.6; white-space: pre-wrap; margin-top: 26px; }
+    .view-mood { display:flex; align-items:center; gap: 10px; margin-top: 26px; }
+
+    /* Ustawienia */
+    .section-title { font-size: 13px; font-weight: 700; letter-spacing: .3px; color: var(--muted); margin: 30px 0 12px; }
+    .seg { display:flex; gap:8px; }
+    .seg-btn {
+      flex:1; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 16px;
+      font-size: 15px; font-weight: 700; cursor: pointer; color: var(--fg); font-family: inherit;
+      display:flex; align-items:center; justify-content:center; gap:8px; transition: all .14s;
+    }
+    .seg-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+    .cat-list { display:flex; flex-direction:column; gap:8px; }
+    .cat-row {
+      display:flex; align-items:center; justify-content:space-between;
+      border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--card);
+    }
+    .cat-row .name { font-weight: 700; font-size: 15px; }
+    .cat-del { border:none; background:transparent; color: var(--muted); cursor:pointer; padding:4px; display:flex; }
+    .cat-del:hover { color: #d11; }
+
+    .spacer { height: 8px; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.35);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 30; animation: fade .15s ease;
+    }
+    .modal {
+      background: var(--bg); color: var(--fg); border-radius: 18px;
+      width: min(420px, calc(100% - 32px)); max-height: calc(100% - 48px);
+      overflow: auto; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; }
+    .modal-title { font-size: 18px; font-weight: 800; letter-spacing: -.2px; margin: 0; }
+    .modal .new-cat-input {
+      width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--fg);
+      border-radius: 12px; padding: 13px 14px; font-size: 14px; font-family: inherit; outline: none;
+    }
+    .modal .new-cat-input::placeholder { color: var(--muted); }
+    .modal .add-cat-btn {
+      width: 100%; margin-top: 10px; border: none; border-radius: 12px; padding: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+      background: var(--fg); color: var(--bg);
+    }
+    .modal .add-cat-btn:disabled { background: #d6d6d6; cursor: not-allowed; }
+    .modal .cat-list { margin-top: 18px; display:flex; flex-direction:column; gap: 8px; }
+    .modal .cat-row {
+      display:flex; align-items:center; gap: 10px; justify-content: space-between;
+      border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
+    }
+    .modal .cat-row .name { display:flex; align-items:center; gap: 10px; font-weight: 600; font-size: 14px; }
+
+    /* Confirm-delete modal */
+    .confirm {
+      width: min(360px, calc(100% - 32px));
+      text-align: center; padding: 26px 22px 22px;
+    }
+    .confirm .icon-wrap {
+      width: 56px; height: 56px; border-radius: 999px;
+      background: #c62828; color: #ffffff;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .confirm h3 { font-size: 18px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.2px; }
+    .confirm p { font-size: 14px; color: var(--muted); margin: 0 0 20px; line-height: 1.45; }
+    .confirm-actions { display: flex; gap: 10px; }
+    .confirm-actions .btn {
+      flex: 1; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 700;
+      border: none; cursor: pointer; font-family: inherit;
+    }
+    .confirm-actions .btn-cancel { background: #ffffff; color: var(--fg); border: 1px solid var(--line); }
+    .confirm-actions .btn-delete { background: #c62828; color: #ffffff; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo } = React;
+
+    /* ---------------- Faza księżyca ---------------- */
+    // Zwraca indeks 0..7 fazy na podstawie daty (algorytm bez API).
+    function moonPhaseIndex(date) {
+      // Znana data nowiu: 2000-01-06 18:14 UTC
+      const synodic = 29.53058867; // dni
+      const known = Date.UTC(2000, 0, 6, 18, 14, 0) / 86400000; // w dniach
+      const now = date.getTime() / 86400000;
+      let age = ((now - known) % synodic + synodic) % synodic; // 0..29.53
+      // Mapowanie wieku na 8 faz
+      const idx = Math.floor((age / synodic) * 8 + 0.5) % 8;
+      return idx;
+    }
+    const MOON = [
+      { key: "new",             label: "Nów",                 icon: "🌑" },
+      { key: "waxing_crescent", label: "Przybywający sierp",  icon: "🌒" },
+      { key: "first_quarter",   label: "Pierwsza kwadra",     icon: "🌓" },
+      { key: "waxing_gibbous",  label: "Przybywający garb",   icon: "🌔" },
+      { key: "full",            label: "Pełnia",              icon: "🌕" },
+      { key: "waning_gibbous",  label: "Ubywający garb",      icon: "🌖" },
+      { key: "last_quarter",    label: "Ostatnia kwadra",     icon: "🌗" },
+      { key: "waning_crescent", label: "Ubywający sierp",     icon: "🌘" },
+    ];
+    function moonForDate(d) { return MOON[moonPhaseIndex(d)]; }
+    function moonByKey(key) { return MOON.find(m => m.key === key) || MOON[0]; }
+
+    // Czarno-biała ikona fazy księżyca rysowana geometrycznie (kontur + cień).
+    // [oświetlona część 0..1, czy przybywa (lit po prawej)]
+    const MOON_GEO = {
+      new:              [0,    true],
+      waxing_crescent:  [0.25, true],
+      first_quarter:    [0.5,  true],
+      waxing_gibbous:   [0.75, true],
+      full:             [1,    true],
+      waning_gibbous:   [0.75, false],
+      last_quarter:     [0.5,  false],
+      waning_crescent:  [0.25, false],
+    };
+    function MoonGlyph({ phaseKey, size = 22 }) {
+      const [f, waxing] = MOON_GEO[phaseKey] || MOON_GEO.new;
+      const cx = 12, cy = 12, r = 9.2, sw = 1.5;
+      const T = `${cx} ${cy - r}`, B = `${cx} ${cy + r}`;
+      // Półoś terminatora; znak: dodatni dla sierpa (f<0.5), ujemny dla garbu (f>0.5).
+      const b = r * (1 - 2 * f);
+      const rx = Math.abs(b);
+      const crescent = f < 0.5; // sierp vs garb
+      let shadow = null;
+      if (f < 1) {
+        // Strona cienia: waxing → lewa (outer sweep 0), waning → prawa (outer sweep 1).
+        const outer = waxing ? 0 : 1;
+        // Terminator wybrzusza się: dla sierpa w stronę oświetloną (cień >½),
+        // dla garbu w stronę cienia (cień <½). To odwraca jego sweep.
+        const term = waxing ? (crescent ? 0 : 1) : (crescent ? 1 : 0);
+        shadow = `M ${T} A ${r} ${r} 0 0 ${outer} ${B} A ${rx} ${r} 0 0 ${term} ${T} Z`;
+      }
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth={sw} />
+          {shadow && <path d={shadow} fill="currentColor" />}
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth={sw} />
+        </svg>
+      );
+    }
+
+    /* ---------------- Ikony Lucide (v1.17.0, ISC) ---------------- */
+    // Każda ikona to lista elementów [tag, attrs] w viewBox 0 0 24 24.
+    const LUCIDE = {
+      angry: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M16 16s-1.5-2-4-2-4 2-4 2"}],["path",{d:"M7.5 8 10 9"}],["path",{d:"m14 9 2.5-1"}],["path",{d:"M9 10h.01"}],["path",{d:"M15 10h.01"}]],
+      frown: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M16 16s-1.5-2-4-2-4 2-4 2"}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
+      meh:   [["circle",{cx:12,cy:12,r:10}],["line",{x1:8,x2:16,y1:15,y2:15}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
+      smile: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M8 14s1.5 2 4 2 4-2 4-2"}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
+      laugh: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M18 13a6 6 0 0 1-6 5 6 6 0 0 1-6-5h12Z"}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
+      trash: [["path",{d:"M10 11v6"}],["path",{d:"M14 11v6"}],["path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"}],["path",{d:"M3 6h18"}],["path",{d:"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}]],
+      arrowLeft: [["path",{d:"m12 19-7-7 7-7"}],["path",{d:"M19 12H5"}]],
+      x:     [["path",{d:"M18 6 6 18"}],["path",{d:"m6 6 12 12"}]],
+      plus:  [["path",{d:"M5 12h14"}],["path",{d:"M12 5v14"}]],
+      settings: [["path",{d:"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"}],["circle",{cx:12,cy:12,r:3}]],
+      sun:   [["circle",{cx:12,cy:12,r:4}],["path",{d:"M12 2v2"}],["path",{d:"M12 20v2"}],["path",{d:"m4.93 4.93 1.41 1.41"}],["path",{d:"m17.66 17.66 1.41 1.41"}],["path",{d:"M2 12h2"}],["path",{d:"M20 12h2"}],["path",{d:"m6.34 17.66-1.41 1.41"}],["path",{d:"m19.07 4.93-1.41 1.41"}]],
+      moon:  [["path",{d:"M12 3a6.364 6.364 0 0 0 9 9 9 9 0 1 1-9-9Z"}]],
+      tag:   [["path",{d:"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"}],["circle",{cx:7.5,cy:7.5,r:.5,fill:"currentColor"}]],
+      check: [["path",{d:"M20 6 9 17l-5-5"}]],
+      pencil: [["path",{d:"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"}],["path",{d:"m15 5 4 4"}]],
+      home:  [["path",{d:"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"}],["path",{d:"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"}]],
+      monitor: [["rect",{width:20,height:14,x:2,y:3,rx:2}],["line",{x1:8,x2:16,y1:21,y2:21}],["line",{x1:12,x2:12,y1:17,y2:21}]],
+      shoppingCart: [["circle",{cx:8,cy:21,r:1}],["circle",{cx:19,cy:21,r:1}],["path",{d:"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"}]],
+      partyPopper: [["path",{d:"M5.8 11.3 2 22l10.7-3.79"}],["path",{d:"M4 3h.01"}],["path",{d:"M22 8h.01"}],["path",{d:"M15 2h.01"}],["path",{d:"M22 20h.01"}],["path",{d:"m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"}],["path",{d:"m22 13-1.99-.94c-.78-.37-1.7 0-2.02.81l-.22.55c-.1.24-.31.42-.55.49l-2.1.62"}],["path",{d:"m17 22-.65-2.65c-.1-.42.07-.85.46-1.12L20 17"}]],
+    };
+    const CATEGORY_ICON = { praca:"monitor", dom:"home", zakupy:"shoppingCart", rozrywka:"partyPopper" };
+    function iconForTag(name) { return CATEGORY_ICON[(name || "").toLowerCase()] || "tag"; }
+    function DLogo({ width = 51, height = 45 }) {
+      return (
+        <svg width={width} height={height} viewBox="0 0 18.2 16.3" fill="currentColor" style={{display:"block"}}>
+          <rect x="1.8" y="1.6" width="2.7" height="13.2" />
+          <path d="M7,1.6v4.1c1.4,0,2.5,1.1,2.5,2.5s-1.1,2.5-2.5,2.5v4c3.6,0,6.6-2.9,6.6-6.6S10.6,1.6,7,1.6Z" />
+          <path d="M15,11.8c-.8,0-1.5.7-1.5,1.5s.7,1.5,1.5,1.5,1.5-.7,1.5-1.5-.7-1.5-1.5-1.5Z" />
+        </svg>
+      );
+    }
+    function LucideIcon({ name, size = 24, strokeWidth = 2, style }) {
+      const nodes = LUCIDE[name] || [];
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth={strokeWidth}
+             strokeLinecap="round" strokeLinejoin="round"
+             style={{display:"block", ...style}}>
+          {nodes.map(([tag, attrs], i) => React.createElement(tag, { key: i, ...attrs }))}
+        </svg>
+      );
+    }
+
+    /* ---------------- Nastrój (ikony Lucide) ---------------- */
+    const MOODS = [
+      { key: "very_bad",  label: "Bardzo źle",     icon: "angry" },
+      { key: "bad",       label: "Źle",            icon: "frown" },
+      { key: "neutral",   label: "Neutralnie",     icon: "meh" },
+      { key: "good",      label: "Dobrze",         icon: "smile" },
+      { key: "very_good", label: "Bardzo dobrze",  icon: "laugh" },
+    ];
+    function moodIconName(key) {
+      const m = MOODS.find(x => x.key === key);
+      return m ? m.icon : "meh";
+    }
+    function MoodIcon({ moodKey, size = 30 }) {
+      return <LucideIcon name={moodIconName(moodKey)} size={size} />;
+    }
+
+    /* ---------------- Przechowywanie ---------------- */
+    const STORAGE_KEY = "daily_tm_entries_v1";
+    function loadEntries() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveEntries(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+    /* ---------------- Ustawienia (motyw + kategorie tagów) ---------------- */
+    const SETTINGS_KEY = "daily_tm_settings_v1";
+    const DEFAULT_SETTINGS = { theme: "light", categories: ["praca", "dom", "zakupy", "rozrywka"] };
+    function loadSettings() {
+      try { return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) }; }
+      catch { return { ...DEFAULT_SETTINGS }; }
+    }
+    function saveSettings(s) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    }
+
+    /* ---------------- Formatowanie daty ---------------- */
+    const DNI = ["niedziela","poniedziałek","wtorek","środa","czwartek","piątek","sobota"];
+    const MIES = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
+    function fmtDate(iso) {
+      const d = new Date(iso);
+      return `${d.getDate()} ${MIES[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    function fmtTime(iso) {
+      const d = new Date(iso);
+      return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    }
+    function fmtLong(iso) {
+      const d = new Date(iso);
+      return `${DNI[d.getDay()]}, ${fmtDate(iso)} · ${fmtTime(iso)}`;
+    }
+
+    /* =====================================================
+       EKRAN 1 — DODAWANIE / EDYCJA WPISU
+       ===================================================== */
+    function EntryFormScreen({ onSave, onCancel, categories, initial, onOpenCategories }) {
+      const isEdit = !!initial;
+      const [title, setTitle] = useState(initial ? initial.title : "");
+      const [content, setContent] = useState(initial ? initial.content : "");
+      const [mood, setMood] = useState(initial ? initial.mood : "neutral");
+      const [tags, setTags] = useState(initial ? (initial.tags || []) : []);
+      // data i faza księżyca pochodzą z wpisu (edycja) lub z chwili tworzenia (nowy)
+      const baseDate = useMemo(() => initial ? new Date(initial.createdAt) : new Date(), [initial]);
+      const moon = isEdit ? moonByKey(initial.moonPhase) : moonForDate(baseDate);
+
+      const canSave = title.trim() || content.trim();
+
+      function toggleTag(t) {
+        setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+      }
+      function save() {
+        if (!canSave) return;
+        if (isEdit) {
+          onSave({ ...initial, title: title.trim(), content: content.trim(), mood, tags });
+        } else {
+          onSave({
+            id: uid(),
+            title: title.trim(),
+            content: content.trim(),
+            mood,
+            tags,
+            createdAt: baseDate.toISOString(),
+            moonPhase: moon.key,
+          });
+        }
+      }
+
+      return (
+        <div className="screen">
+          <div className="topbar">
+            <div className="brand"><DLogo /></div>
+            <button className="iconbtn" onClick={onCancel} aria-label="Zamknij"><LucideIcon name="x" size={22} /></button>
+          </div>
+
+          <div className="form-meta">
+            <div className="meta-label">{isEdit ? "Edytuj wpis" : "Nowy wpis"}</div>
+            <div className="meta-row">
+              <span className="meta-date">{fmtDate(baseDate.toISOString())} · {fmtTime(baseDate.toISOString())}</span>
+              <span className="phase-chip" title={moon.label}>
+                {moon.label} <MoonGlyph phaseKey={moon.key} size={14} />
+              </span>
+            </div>
+          </div>
+
+          <input className="text title-big" placeholder="Tytuł"
+                 value={title} onChange={e => setTitle(e.target.value)} autoFocus={!isEdit}
+                 style={{border:"none", outline:"none", background:"transparent", width:"100%", padding:0}} />
+
+          <textarea className="text body-text" placeholder="treść wpisu"
+                    value={content} onChange={e => setContent(e.target.value)}
+                    style={{border:"none", outline:"none", background:"transparent", width:"100%", padding:0, resize:"none", minHeight:140, fontFamily:"inherit"}} />
+
+          <div className="field">
+            <div className="moods-line stack">
+              <span className="label">Nastrój:</span>
+              <div className="icons">
+                {MOODS.map(m => (
+                  <button key={m.key} type="button"
+                          className={"mood-btn" + (mood === m.key ? " active" : "")}
+                          onClick={() => setMood(m.key)} title={m.label}>
+                    <MoodIcon moodKey={m.key} size={22} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="field">
+            <div className="tags-line" style={{flexDirection:"column", alignItems:"flex-start", gap: 10}}>
+              <span className="label">Tagi:</span>
+              <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+                {categories.map(t => (
+                  <button key={t} type="button"
+                          className={"tag-pill" + (tags.includes(t) ? " active" : "")}
+                          onClick={() => toggleTag(t)}>
+                    <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
+                    {t}
+                  </button>
+                ))}
+                <button type="button" className="tag-pill add" onClick={onOpenCategories} aria-label="Zarządzaj tagami">
+                  <LucideIcon name="plus" size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky-bottom">
+            <button className="btn btn-primary" disabled={!canSave} onClick={save}>{isEdit ? "Zapisz zmiany" : "Zapisz wpis"}</button>
+          </div>
+        </div>
+      );
+    }
+
+    /* =====================================================
+       EKRAN 2 — LISTA WPISÓW
+       ===================================================== */
+    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, categories, theme, onThemeChange }) {
+      const [filterTag, setFilterTag] = useState(null);
+
+      const filtered = useMemo(() => (
+        filterTag ? entries.filter(e => (e.tags || []).includes(filterTag)) : entries
+      ), [entries, filterTag]);
+
+      const sortedItems = useMemo(() => (
+        [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      ), [filtered]);
+
+      function plural(n) {
+        if (n === 1) return "wpis";
+        const lastTwo = n % 100, last = n % 10;
+        if (last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "wpisy";
+        return "wpisów";
+      }
+
+      return (
+        <div className="screen">
+          <div className="topbar">
+            <div className="brand-row">
+              <div className="brand"><DLogo /></div>
+            </div>
+            <div className="theme-row">
+              <button className={"iconbtn" + (theme === "light" ? "" : " muted")}
+                      onClick={() => onThemeChange("light")} aria-label="Jasny motyw" title="Jasny motyw">
+                <LucideIcon name="sun" size={22} />
+              </button>
+              <button className={"iconbtn" + (theme === "dark" ? "" : " muted")}
+                      onClick={() => onThemeChange("dark")} aria-label="Ciemny motyw" title="Ciemny motyw">
+                <LucideIcon name="moon" size={22} />
+              </button>
+            </div>
+          </div>
+
+          <p className="sub" style={{marginTop: 10}}>
+            {entries.length === 0 ? "Twoja przestrzeń na refleksji" : `${entries.length} ${plural(entries.length)}`}
+          </p>
+
+          {categories.length > 0 && (
+            <div className="tagbar" onWheel={(e) => {
+              const el = e.currentTarget;
+              if (el.scrollWidth <= el.clientWidth) return;
+              if (e.deltaY !== 0) { el.scrollLeft += e.deltaY; }
+            }}>
+              <button className={"tag-pill" + (filterTag === null ? " active" : "")} onClick={() => setFilterTag(null)}>Wszystkie</button>
+              {categories.map(t => (
+                <button key={t} className={"tag-pill" + (filterTag === t ? " active" : "")} onClick={() => setFilterTag(t)}>
+                  <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
+                  {t}
+                </button>
+              ))}
+              <button className="tag-pill add" onClick={onOpenCategories} aria-label="Zarządzaj tagami" title="Zarządzaj tagami">
+                <LucideIcon name="plus" size={16} />
+              </button>
+            </div>
+          )}
+
+          {entries.length === 0 ? (
+            <div className="empty">
+              <p className="empty-text">Nie masz jeszcze żadnych wpisów. <span style={{fontWeight:200}}>Dodaj swój pierwszy wpis i zacznij dzień od refleksji.</span></p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="empty">
+              <p className="empty-text">Brak wpisów z tagiem #{filterTag}.</p>
+            </div>
+          ) : (
+            <div style={{marginTop: 24}}>
+              {sortedItems.map(e => {
+                const firstTag = (e.tags && e.tags[0]) || null;
+                return (
+                  <div key={e.id} className="entry" onClick={() => onOpen(e.id)}>
+                    <div className="entry-icon">
+                      <LucideIcon name={firstTag ? iconForTag(firstTag) : "tag"} size={22} strokeWidth={1.8} />
+                    </div>
+                    <div className="entry-mid">
+                      <h3 className="entry-title">{e.title || "(bez tytułu)"}</h3>
+                      {e.content && <p className="entry-snippet">{e.content}</p>}
+                    </div>
+                    <div className="entry-right">
+                      <span className="date">{fmtDate(e.createdAt)}</span>
+                      <MoodIcon moodKey={e.mood} size={20} />
+                      <MoonGlyph phaseKey={e.moonPhase} size={16} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="list-bottom-pad"></div>
+          <button className="fab" onClick={onAdd} aria-label="Dodaj wpis"><LucideIcon name="plus" size={28} /></button>
+        </div>
+      );
+    }
+
+    /* =====================================================
+       EKRAN 3 — PODGLĄD WPISU
+       ===================================================== */
+    function ViewScreen({ entry, onBack, onDelete, onEdit }) {
+      const [confirmDel, setConfirmDel] = useState(false);
+      if (!entry) return null;
+      const moon = moonByKey(entry.moonPhase);
+      const mood = MOODS.find(m => m.key === entry.mood);
+
+      return (
+        <div className="screen">
+          <div className="topbar">
+            <div className="brand" onClick={onBack} style={{cursor:"pointer"}} title="Wróć"><DLogo /></div>
+            <div style={{display:"flex", gap:4}}>
+              <button className="iconbtn" onClick={() => onEdit(entry.id)} aria-label="Edytuj" title="Edytuj"><LucideIcon name="pencil" size={20} /></button>
+              <button className="iconbtn" onClick={() => setConfirmDel(true)} aria-label="Usuń" title="Usuń"><LucideIcon name="trash" size={20} /></button>
+            </div>
+          </div>
+
+          <div className="form-meta">
+            <div className="meta-label">Wpis</div>
+            <div className="meta-row">
+              <span className="meta-date">{fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}</span>
+              <span className="phase-chip" title={moon.label}>
+                {moon.label} <MoonGlyph phaseKey={moon.key} size={14} />
+              </span>
+            </div>
+          </div>
+
+          <h1 className="title-big">{entry.title || "(bez tytułu)"}</h1>
+
+          {entry.content && <p className="body-text">{entry.content}</p>}
+
+          <div className="view-bottom">
+            <div className="moodwrap" title={mood ? mood.label : ""}>
+              <MoodIcon moodKey={entry.mood} size={22} />
+            </div>
+            <span className="nastroj">Nastrój:</span>
+            {entry.tags && entry.tags.map(t => (
+              <span key={t} className="tag-pill" style={{cursor:"default"}}>
+                <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
+                {t}
+              </span>
+            ))}
+          </div>
+
+          {confirmDel && (
+            <div className="modal-backdrop" onClick={() => setConfirmDel(false)}>
+              <div className="modal confirm" onClick={e => e.stopPropagation()}>
+                <div className="icon-wrap"><LucideIcon name="trash" size={26} strokeWidth={1.8} /></div>
+                <h3>Usunąć ten wpis?</h3>
+                <p>Tej operacji nie da się cofnąć. Wpis zniknie na zawsze.</p>
+                <div className="confirm-actions">
+                  <button className="btn btn-cancel" onClick={() => setConfirmDel(false)}>Anuluj</button>
+                  <button className="btn btn-delete" onClick={() => { setConfirmDel(false); onDelete(entry.id); }}>Usuń</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* =====================================================
+       MODAL — KATEGORIE TAGÓW
+       ===================================================== */
+    function CategoriesModal({ categories, onChange, onClose }) {
+      const [draft, setDraft] = useState("");
+      const trimmed = draft.trim().toLowerCase();
+      const canAdd = trimmed && !categories.includes(trimmed);
+
+      function add() {
+        if (!canAdd) return;
+        onChange([...categories, trimmed]);
+        setDraft("");
+      }
+      function remove(t) {
+        onChange(categories.filter(x => x !== t));
+      }
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3 className="modal-title">Kategorie tagów</h3>
+              <button className="iconbtn" onClick={onClose} aria-label="Zamknij"><LucideIcon name="x" size={20} /></button>
+            </div>
+
+            <input className="new-cat-input" placeholder="Nowa kategoria"
+                   value={draft} onChange={e => setDraft(e.target.value)}
+                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+            <button className="add-cat-btn" onClick={add} disabled={!canAdd}>Dodaj nowy tag</button>
+
+            {categories.length > 0 && (
+              <div className="cat-list">
+                {categories.map(t => (
+                  <div key={t} className="cat-row">
+                    <span className="name">
+                      <LucideIcon name={iconForTag(t)} size={16} strokeWidth={1.8} />
+                      {t}
+                    </span>
+                    <button className="cat-del" onClick={() => remove(t)} aria-label={"Usuń " + t}>
+                      <LucideIcon name="trash" size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* =====================================================
+       APLIKACJA — prosty router stanu
+       ===================================================== */
+    function App() {
+      const [entries, setEntries] = useState(loadEntries);
+      const [settings, setSettings] = useState(loadSettings);
+      const [route, setRoute] = useState({ name: "list", id: null });
+      const [showCategories, setShowCategories] = useState(false);
+
+      useEffect(() => { saveEntries(entries); }, [entries]);
+      useEffect(() => {
+        saveSettings(settings);
+        document.documentElement.setAttribute("data-theme", settings.theme);
+      }, [settings]);
+
+      function addEntry(entry) {
+        setEntries(prev => [entry, ...prev]);
+        setRoute({ name: "list" });
+      }
+      function updateEntry(entry) {
+        setEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+        setRoute({ name: "view", id: entry.id });
+      }
+      function deleteEntry(id) {
+        setEntries(prev => prev.filter(e => e.id !== id));
+        setRoute({ name: "list" });
+      }
+
+      const current = entries.find(e => e.id === route.id);
+
+      return (
+        <div className="app">
+          {route.name === "list" && (
+            <ListScreen entries={entries} categories={settings.categories}
+              theme={settings.theme}
+              onThemeChange={(theme) => setSettings(s => ({ ...s, theme }))}
+              onAdd={() => setRoute({ name: "add" })}
+              onOpen={(id) => setRoute({ name: "view", id })}
+              onOpenCategories={() => setShowCategories(true)} />
+          )}
+          {route.name === "add" && (
+            <EntryFormScreen categories={settings.categories}
+              onSave={addEntry} onCancel={() => setRoute({ name: "list" })}
+              onOpenCategories={() => setShowCategories(true)} />
+          )}
+          {route.name === "edit" && current && (
+            <EntryFormScreen categories={settings.categories} initial={current}
+              onSave={updateEntry} onCancel={() => setRoute({ name: "view", id: current.id })}
+              onOpenCategories={() => setShowCategories(true)} />
+          )}
+          {route.name === "view" && (
+            <ViewScreen entry={current}
+              onBack={() => setRoute({ name: "list" })}
+              onEdit={(id) => setRoute({ name: "edit", id })}
+              onDelete={deleteEntry} />
+          )}
+          {showCategories && (
+            <CategoriesModal categories={settings.categories}
+              onChange={(categories) => setSettings(s => ({ ...s, categories }))}
+              onClose={() => setShowCategories(false)} />
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
