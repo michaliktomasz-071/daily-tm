@@ -22,6 +22,7 @@
       --muted: #8a8a8a;
       --line: #ececec;
       --chip: #f2f2f2;
+      --chip-bg: #ffffff;
       --page: #f4f4f4;
       --card: #f4f4f4;
     }
@@ -31,6 +32,7 @@
       --muted: #8f8f8f;
       --line: #272727;
       --chip: #1c1c1c;
+      --chip-bg: #1c1c1c;
       --page: #000000;
       --card: #161616;
     }
@@ -222,7 +224,7 @@
     }
     .tagbar::-webkit-scrollbar { display:none; }
     .tag-pill {
-      flex:none; border: 1px solid var(--line); background: #ffffff; border-radius: 999px;
+      flex:none; border: 1px solid var(--line); background: var(--chip-bg); border-radius: 999px;
       padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--fg);
       font-family: inherit; white-space: nowrap; transition: all .14s;
       display: inline-flex; align-items: center; gap: 6px;
