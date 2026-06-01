@@ -14,6 +14,8 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase (anonimowe konto + zapis wpisów do bazy) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
@@ -51,7 +53,7 @@
       box-shadow: 0 0 40px rgba(0,0,0,0.06);
     }
     .app { display: flex; flex-direction: column; min-height: 100vh; }
-    .screen { flex: 1; padding: 28px 22px 40px; animation: fade .18s ease; }
+    .screen { flex: 1; padding: 28px 24px 40px; animation: fade .18s ease; }
     @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
 
     /* Typografia */
@@ -152,13 +154,53 @@
     .moods-line.stack { flex-direction: column; align-items: flex-start; gap: 10px; }
     .moods-line .label { color: var(--fg); font-weight: 700; font-size: 14px; margin-right: 4px; }
     .moods-line .icons { display:flex; gap: 10px; flex-wrap: wrap; }
-    .mood-btn {
-      width: 36px; height: 36px; border-radius: 999px; border: 1.5px solid var(--line);
-      background: var(--card); color: var(--fg); cursor: pointer;
-      display:flex; align-items:center; justify-content:center; transition: all .14s;
-      padding: 0;
+
+    /* Suwak nastroju */
+    .mood-slider { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+    .mood-display {
+      width: 72px; height: 72px; border-radius: 999px;
+      border: 1.5px solid var(--fg); background: var(--chip-bg); color: var(--fg);
+      display: flex; align-items: center; justify-content: center; flex: none;
     }
-    .mood-btn.active { background: var(--chip-bg); color: var(--fg); }
+    .mood-track {
+      width: 100%; position: relative; height: 32px;
+      display: flex; align-items: center;
+    }
+    .mood-track .line {
+      position: absolute; left: 12px; right: 12px; top: 50%;
+      height: 2px; background: var(--line); transform: translateY(-50%);
+      border-radius: 1px; pointer-events: none;
+    }
+    .mood-track .ticks {
+      position: absolute; left: 12px; right: 12px; top: 50%;
+      display: flex; align-items: center; justify-content: space-between;
+      transform: translateY(-50%); pointer-events: none; z-index: 1;
+    }
+    .mood-tick {
+      width: 8px; height: 8px; border-radius: 999px;
+      background: var(--line); border: none; padding: 0;
+    }
+    /* Suwak — natywny range z widocznym kciukiem */
+    .mood-range {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      -webkit-appearance: none; appearance: none;
+      background: transparent; margin: 0; padding: 0;
+      cursor: grab; z-index: 2;
+    }
+    .mood-range:active { cursor: grabbing; }
+    .mood-range::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+    .mood-range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 24px; height: 24px; border-radius: 999px;
+      background: var(--fg); border: none; cursor: grab;
+    }
+    .mood-range:active::-webkit-slider-thumb { cursor: grabbing; }
+    .mood-range::-moz-range-track { background: transparent; height: 100%; border: none; }
+    .mood-range::-moz-range-thumb {
+      width: 24px; height: 24px; border-radius: 999px;
+      background: var(--fg); border: none; cursor: grab;
+    }
+    .mood-range:focus { outline: none; }
 
     .tags-line { display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
     .tags-line .label { color: var(--fg); font-weight: 700; font-size: 14px; margin-right: 4px; }
@@ -323,6 +365,54 @@
     }
     .confirm-actions .btn-cancel { background: #ffffff; color: var(--fg); border: 1px solid var(--line); }
     .confirm-actions .btn-delete { background: #c62828; color: #ffffff; }
+
+    /* Account modal */
+    .account-status { display:flex; align-items:center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--chip-bg); border: 1px solid var(--line); margin-bottom: 16px; }
+    .account-status .badge { width: 36px; height: 36px; border-radius: 999px; background: var(--fg); color: var(--bg); display:flex; align-items:center; justify-content:center; flex: none; }
+    .account-status .who { display:flex; flex-direction:column; gap: 2px; min-width: 0; }
+    .account-status .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+    .account-status .email { font-size: 14px; font-weight: 700; overflow:hidden; text-overflow:ellipsis; }
+    .account-form { display: flex; flex-direction: column; gap: 10px; }
+    .account-form input {
+      width: 100%; border: 1px solid var(--line); background: var(--chip-bg); color: var(--fg);
+      border-radius: 12px; padding: 12px 14px; font-size: 14px; font-family: inherit; outline: none;
+    }
+    .account-form input:focus { border-color: var(--fg); }
+    .account-form input::placeholder { color: var(--muted); }
+    .account-form .submit-btn { background: var(--fg); color: var(--bg); border: none; border-radius: 12px; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; }
+    .account-form .submit-btn:disabled { background: #d6d6d6; cursor: not-allowed; }
+    .account-switch { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
+    .account-switch button { background: none; border: none; color: var(--fg); font-weight: 700; cursor: pointer; padding: 0; font-family: inherit; font-size: 13px; text-decoration: underline; }
+    .account-msg { font-size: 13px; padding: 10px 12px; border-radius: 10px; margin-top: 10px; }
+    .account-msg.error { background: #fde9e9; color: #c62828; }
+    .account-msg.info { background: var(--chip-bg); color: var(--muted); border: 1px solid var(--line); }
+    .signout-btn { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .signout-btn:hover { background: var(--chip-bg); }
+
+    /* Pasek dni tygodnia */
+    .day-strip {
+      display:flex; gap: 8px; overflow-x:auto; padding: 2px 0 6px; margin-top: 16px;
+      scrollbar-width:none; -webkit-overflow-scrolling: touch;
+    }
+    .day-strip::-webkit-scrollbar { display:none; }
+    .day-card {
+      flex: none; min-width: 64px;
+      background: transparent; border: 1px solid var(--line); border-radius: 14px;
+      padding: 10px 8px 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      cursor: pointer; transition: border-color .14s;
+      font-family: inherit;
+    }
+    .day-card:hover { border-color: var(--muted); }
+    .day-card .dow {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      letter-spacing: .3px; text-transform: lowercase;
+    }
+    .day-card .dom { font-size: 13px; font-weight: 400; color: var(--fg); letter-spacing: -.2px; }
+    .day-card.is-today .dom { font-weight: 800; }
+    .day-card .phase { color: var(--fg); margin-top: 2px; display:flex; }
+    .day-card.active { border-color: var(--fg); border-width: 1.5px; padding: 9px 7px 7px; }
+    .day-card.active .dow { color: var(--fg); }
   </style>
 </head>
 <body>
@@ -416,15 +506,16 @@
       monitor: [["rect",{width:20,height:14,x:2,y:3,rx:2}],["line",{x1:8,x2:16,y1:21,y2:21}],["line",{x1:12,x2:12,y1:17,y2:21}]],
       shoppingCart: [["circle",{cx:8,cy:21,r:1}],["circle",{cx:19,cy:21,r:1}],["path",{d:"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"}]],
       partyPopper: [["path",{d:"M5.8 11.3 2 22l10.7-3.79"}],["path",{d:"M4 3h.01"}],["path",{d:"M22 8h.01"}],["path",{d:"M15 2h.01"}],["path",{d:"M22 20h.01"}],["path",{d:"m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"}],["path",{d:"m22 13-1.99-.94c-.78-.37-1.7 0-2.02.81l-.22.55c-.1.24-.31.42-.55.49l-2.1.62"}],["path",{d:"m17 22-.65-2.65c-.1-.42.07-.85.46-1.12L20 17"}]],
+      user:  [["path",{d:"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"}],["circle",{cx:12,cy:7,r:4}]],
+      logOut: [["path",{d:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"}],["polyline",{points:"16 17 21 12 16 7"}],["line",{x1:21,x2:9,y1:12,y2:12}]],
+      mail: [["rect",{width:20,height:16,x:2,y:4,rx:2}],["path",{d:"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"}]],
     };
     const CATEGORY_ICON = { praca:"monitor", dom:"home", zakupy:"shoppingCart", rozrywka:"partyPopper" };
     function iconForTag(name) { return CATEGORY_ICON[(name || "").toLowerCase()] || "tag"; }
     function DLogo({ width = 51, height = 45 }) {
       return (
-        <svg width={width} height={height} viewBox="0 0 18.2 16.3" fill="currentColor" style={{display:"block"}}>
-          <rect x="1.8" y="1.6" width="2.7" height="13.2" />
-          <path d="M7,1.6v4.1c1.4,0,2.5,1.1,2.5,2.5s-1.1,2.5-2.5,2.5v4c3.6,0,6.6-2.9,6.6-6.6S10.6,1.6,7,1.6Z" />
-          <path d="M15,11.8c-.8,0-1.5.7-1.5,1.5s.7,1.5,1.5,1.5,1.5-.7,1.5-1.5-.7-1.5-1.5-1.5Z" />
+        <svg width={width} height={height} viewBox="0 0 69 57" fill="currentColor" style={{display:"block"}}>
+          <path d="M28.5 0C44.2401 0 57 12.7599 57 28.5C57 44.2401 44.2401 57 28.5 57C12.7599 57 0 44.2401 0 28.5C0 12.7599 12.7599 0 28.5 0ZM62 43C65.866 43 69 46.134 69 50C69 53.866 65.866 57 62 57C58.134 57 55 53.866 55 50C55 46.134 58.134 43 62 43ZM28.5 43C30.4041 43 32.2897 42.6251 34.0488 41.8965C35.808 41.1678 37.4065 40.0994 38.7529 38.7529C40.0994 37.4065 41.1678 35.808 41.8965 34.0488C42.6251 32.2897 43 30.4041 43 28.5C43 26.5959 42.6251 24.7103 41.8965 22.9512C41.1678 21.192 40.0994 19.5935 38.7529 18.2471C37.4065 16.9006 35.808 15.8322 34.0488 15.1035C32.2897 14.3749 30.4041 14 28.5 14V43Z" />
         </svg>
       );
     }
@@ -448,6 +539,8 @@
       { key: "good",      label: "Dobrze",         icon: "smile" },
       { key: "very_good", label: "Bardzo dobrze",  icon: "laugh" },
     ];
+    // Kolejność na suwaku: od najradośniejszego (lewo) do najmniej (prawo)
+    const MOOD_ORDER = ["very_good", "good", "neutral", "bad", "very_bad"];
     function moodIconName(key) {
       const m = MOODS.find(x => x.key === key);
       return m ? m.icon : "meh";
@@ -456,7 +549,14 @@
       return <LucideIcon name={moodIconName(moodKey)} size={size} />;
     }
 
-    /* ---------------- Przechowywanie ---------------- */
+    /* ---------------- Supabase ---------------- */
+    const SUPABASE_URL = "https://chcxkkcnxpwhbhhmqqjy.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MgyAteLB9AFuCb0t5mfyFA_aQZORA_9";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "daily_tm_auth" }
+    });
+
+    /* ---------------- Lokalna cache (dla szybkiego startu + migracji) ---------------- */
     const STORAGE_KEY = "daily_tm_entries_v1";
     function loadEntries() {
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -466,6 +566,22 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
     const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+    /* Mapowanie wiersza DB ↔ wpisu w stanie aplikacji */
+    function rowToEntry(r) {
+      return {
+        id: r.id, title: r.title || "", content: r.content || "",
+        mood: r.mood || "neutral", tags: r.tags || [],
+        moonPhase: r.moon_phase || "new", createdAt: r.created_at
+      };
+    }
+    function entryToRow(e, userId) {
+      return {
+        id: e.id, user_id: userId, title: e.title || "", content: e.content || "",
+        mood: e.mood || "neutral", tags: e.tags || [],
+        moon_phase: e.moonPhase || "new", created_at: e.createdAt
+      };
+    }
 
     /* ---------------- Ustawienia (motyw + kategorie tagów) ---------------- */
     const SETTINGS_KEY = "daily_tm_settings_v1";
@@ -495,13 +611,144 @@
     }
 
     /* =====================================================
+       MODAL — KONTO (logowanie / rejestracja)
+       ===================================================== */
+    function AccountModal({ user, onClose, onAuthChange, hasEntries }) {
+      const isAnon = !!(user && user.is_anonymous);
+      const isPermanent = !!(user && !user.is_anonymous && user.email);
+      // Tryb formularza: dla anon → upgrade (sign up). Dla wylogowanego → sign in. Można przełączać.
+      const [mode, setMode] = useState(isPermanent ? "view" : (isAnon ? "signup" : "signin"));
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState(null);
+      const [info, setInfo] = useState(null);
+
+      const canSubmit = email.trim() && password.length >= 6 && !busy;
+
+      async function handleSignup() {
+        setErr(null); setInfo(null); setBusy(true);
+        try {
+          if (isAnon) {
+            // Upgrade anonimowego usera — zachowuje user_id i wszystkie wpisy.
+            const { error } = await sb.auth.updateUser({ email: email.trim(), password });
+            if (error) throw error;
+            setInfo("Wysłaliśmy maila weryfikacyjnego. Kliknij link w mailu, żeby zakończyć rejestrację.");
+          } else {
+            const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
+            if (error) throw error;
+            if (!data.session) {
+              setInfo("Wysłaliśmy maila weryfikacyjnego. Kliknij link w mailu, żeby zakończyć rejestrację.");
+            } else {
+              await onAuthChange();
+              onClose();
+            }
+          }
+        } catch (e) {
+          setErr(e.message || "Nie udało się zarejestrować.");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function handleSignin() {
+        setErr(null); setInfo(null);
+        if (isAnon && hasEntries) {
+          const ok = window.confirm("Masz niezapisane wpisy na anonimowym koncie. Po zalogowaniu zostaną one porzucone (zostaną w bazie, ale nie będą widoczne na tym koncie). Kontynuować?");
+          if (!ok) return;
+        }
+        setBusy(true);
+        try {
+          if (isAnon) {
+            // Najpierw wyloguj anonimowego, potem zaloguj
+            await sb.auth.signOut();
+          }
+          const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+          if (error) throw error;
+          await onAuthChange();
+          onClose();
+        } catch (e) {
+          setErr(e.message || "Nie udało się zalogować.");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function handleSignout() {
+        setErr(null); setBusy(true);
+        try {
+          await sb.auth.signOut();
+          await onAuthChange();
+          onClose();
+        } catch (e) {
+          setErr(e.message || "Nie udało się wylogować.");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3 className="modal-title">Konto</h3>
+              <button className="iconbtn" onClick={onClose} aria-label="Zamknij"><LucideIcon name="x" size={20} /></button>
+            </div>
+
+            {isPermanent ? (
+              <>
+                <div className="account-status">
+                  <div className="badge"><LucideIcon name="user" size={18} /></div>
+                  <div className="who">
+                    <span className="label">Zalogowano jako</span>
+                    <span className="email">{user.email}</span>
+                  </div>
+                </div>
+                <button className="signout-btn" onClick={handleSignout} disabled={busy}>
+                  <LucideIcon name="logOut" size={16} /> Wyloguj
+                </button>
+                {err && <div className="account-msg error">{err}</div>}
+              </>
+            ) : (
+              <>
+                {isAnon && mode === "signup" && (
+                  <div className="account-msg info" style={{marginBottom: 14, marginTop: 0}}>
+                    Twoje wpisy są zapisane na anonimowym koncie. Zarejestruj się, żeby je trwale przypisać do Twojego e-maila.
+                  </div>
+                )}
+                <form className="account-form" onSubmit={e => { e.preventDefault(); mode === "signup" ? handleSignup() : handleSignin(); }}>
+                  <input type="email" placeholder="E-mail" value={email}
+                         onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+                  <input type="password" placeholder="Hasło (min. 6 znaków)" value={password}
+                         onChange={e => setPassword(e.target.value)}
+                         autoComplete={mode === "signup" ? "new-password" : "current-password"} required minLength={6} />
+                  <button type="submit" className="submit-btn" disabled={!canSubmit}>
+                    {busy ? "..." : (mode === "signup" ? (isAnon ? "Zapisz konto" : "Zarejestruj się") : "Zaloguj się")}
+                  </button>
+                </form>
+                {err && <div className="account-msg error">{err}</div>}
+                {info && <div className="account-msg info">{info}</div>}
+                <p className="account-switch">
+                  {mode === "signup" ? "Masz już konto? " : "Nie masz jeszcze konta? "}
+                  <button type="button" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setErr(null); setInfo(null); }}>
+                    {mode === "signup" ? "Zaloguj się" : "Zarejestruj się"}
+                  </button>
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* =====================================================
        EKRAN 1 — DODAWANIE / EDYCJA WPISU
        ===================================================== */
     function EntryFormScreen({ onSave, onCancel, categories, initial, onOpenCategories }) {
       const isEdit = !!initial;
       const [title, setTitle] = useState(initial ? initial.title : "");
       const [content, setContent] = useState(initial ? initial.content : "");
-      const [mood, setMood] = useState(initial ? initial.mood : "neutral");
+      const [mood, setMood] = useState(initial ? initial.mood : "very_good");
       const [tags, setTags] = useState(initial ? (initial.tags || []) : []);
       // data i faza księżyca pochodzą z wpisu (edycja) lub z chwili tworzenia (nowy)
       const baseDate = useMemo(() => initial ? new Date(initial.createdAt) : new Date(), [initial]);
@@ -557,14 +804,21 @@
           <div className="field">
             <div className="moods-line stack">
               <span className="label">Nastrój:</span>
-              <div className="icons">
-                {MOODS.map(m => (
-                  <button key={m.key} type="button"
-                          className={"mood-btn" + (mood === m.key ? " active" : "")}
-                          onClick={() => setMood(m.key)} title={m.label}>
-                    <MoodIcon moodKey={m.key} size={22} />
-                  </button>
-                ))}
+              <div className="mood-slider">
+                <div className="mood-display" title={MOODS.find(m => m.key === mood)?.label}>
+                  <MoodIcon moodKey={mood} size={40} />
+                </div>
+                <div className="mood-track">
+                  <div className="line"></div>
+                  <div className="ticks">
+                    {MOOD_ORDER.map(m => (<span key={m} className="mood-tick" />))}
+                  </div>
+                  <input type="range" min={0} max={4} step={1}
+                         value={MOOD_ORDER.indexOf(mood)}
+                         onChange={e => setMood(MOOD_ORDER[Number(e.target.value)])}
+                         className="mood-range"
+                         aria-label="Wybierz nastrój" />
+                </div>
               </div>
             </div>
           </div>
@@ -598,12 +852,52 @@
     /* =====================================================
        EKRAN 2 — LISTA WPISÓW
        ===================================================== */
-    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, categories, theme, onThemeChange }) {
+    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, onOpenAccount, categories, theme, onThemeChange }) {
       const [filterTag, setFilterTag] = useState(null);
 
-      const filtered = useMemo(() => (
-        filterTag ? entries.filter(e => (e.tags || []).includes(filterTag)) : entries
-      ), [entries, filterTag]);
+      // Kafelki dni — 14 dni wstecz + dziś + 30 dni do przodu
+      const DOW_SHORT = ["nd","pn","wt","śr","cz","pt","sb"];
+      const DAYS_BACK = 14, DAYS_FORWARD = 30;
+      function dateKey(d) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      }
+      const todayKey = dateKey(new Date());
+      const [selectedDate, setSelectedDate] = useState(todayKey);
+      const dayCards = useMemo(() => {
+        const out = [];
+        const today = new Date(); today.setHours(0,0,0,0);
+        for (let i = -DAYS_BACK; i <= DAYS_FORWARD; i++) {
+          const d = new Date(today); d.setDate(d.getDate() + i);
+          let label;
+          if (i === 0) label = "Dziś";
+          else if (i === 1) label = "Jutro";
+          else if (i === -1) label = "Wczoraj";
+          else label = DOW_SHORT[d.getDay()];
+          const dom = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}`;
+          out.push({ key: dateKey(d), label, dom, phase: moonForDate(d).key, isToday: i === 0 });
+        }
+        return out;
+      }, []);
+      const dayStripRef = React.useRef(null);
+      React.useEffect(() => {
+        const el = dayStripRef.current;
+        if (!el) return;
+        // Wycentruj „Dziś" przy pierwszym renderze (niezależnie od stanu zaznaczenia)
+        const cards = el.querySelectorAll(".day-card");
+        const todayCard = cards[DAYS_BACK];
+        if (todayCard) {
+          const offset = todayCard.offsetLeft - (el.clientWidth - todayCard.clientWidth) / 2;
+          el.scrollLeft = Math.max(0, offset);
+        }
+      }, []);
+
+      const filtered = useMemo(() => {
+        let result = filterTag ? entries.filter(e => (e.tags || []).includes(filterTag)) : entries;
+        if (selectedDate) {
+          result = result.filter(e => dateKey(new Date(e.createdAt)) === selectedDate);
+        }
+        return result;
+      }, [entries, filterTag, selectedDate]);
 
       const sortedItems = useMemo(() => (
         [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -623,13 +917,14 @@
               <div className="brand"><DLogo /></div>
             </div>
             <div className="theme-row">
-              <button className={"iconbtn" + (theme === "light" ? "" : " muted")}
-                      onClick={() => onThemeChange("light")} aria-label="Jasny motyw" title="Jasny motyw">
-                <LucideIcon name="sun" size={22} />
+              <button className="iconbtn"
+                      onClick={() => onThemeChange(theme === "light" ? "dark" : "light")}
+                      aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
+                      title={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}>
+                <LucideIcon name={theme === "light" ? "moon" : "sun"} size={22} />
               </button>
-              <button className={"iconbtn" + (theme === "dark" ? "" : " muted")}
-                      onClick={() => onThemeChange("dark")} aria-label="Ciemny motyw" title="Ciemny motyw">
-                <LucideIcon name="moon" size={22} />
+              <button className="iconbtn" onClick={onOpenAccount} aria-label="Konto" title="Konto">
+                <LucideIcon name="user" size={22} />
               </button>
             </div>
           </div>
@@ -657,13 +952,37 @@
             </div>
           )}
 
+          <div className="day-strip" ref={dayStripRef} onWheel={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollWidth <= el.clientWidth) return;
+            if (e.deltaY !== 0) { el.scrollLeft += e.deltaY; }
+          }}>
+            {dayCards.map(d => (
+              <button key={d.key} type="button"
+                      className={"day-card" + (d.isToday ? " is-today" : "") + (selectedDate === d.key ? " active" : "")}
+                      onClick={() => setSelectedDate(prev => prev === d.key ? null : d.key)}
+                      aria-pressed={selectedDate === d.key}
+                      title={selectedDate === d.key ? "Kliknij ponownie żeby wyłączyć filtr" : "Pokaż tylko wpisy z tego dnia"}>
+                <span className="dow">{d.label}</span>
+                <span className="dom">{d.dom}</span>
+                <span className="phase"><MoonGlyph phaseKey={d.phase} size={18} /></span>
+              </button>
+            ))}
+          </div>
+
           {entries.length === 0 ? (
             <div className="empty">
               <p className="empty-text">Nie masz jeszcze żadnych wpisów. <span style={{fontWeight:200}}>Dodaj swój pierwszy wpis i zacznij dzień od refleksji.</span></p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="empty">
-              <p className="empty-text">Brak wpisów z tagiem #{filterTag}.</p>
+              <p className="empty-text">
+                {selectedDate && filterTag
+                  ? `Brak wpisów z tagiem #${filterTag} w wybranym dniu.`
+                  : selectedDate
+                  ? "Brak wpisów w wybranym dniu."
+                  : `Brak wpisów z tagiem #${filterTag}.`}
+              </p>
             </div>
           ) : (
             <div style={{marginTop: 24}}>
@@ -812,26 +1131,92 @@
        APLIKACJA — prosty router stanu
        ===================================================== */
     function App() {
-      const [entries, setEntries] = useState(loadEntries);
+      const [entries, setEntries] = useState([]);
       const [settings, setSettings] = useState(loadSettings);
       const [route, setRoute] = useState({ name: "list", id: null });
       const [showCategories, setShowCategories] = useState(false);
+      const [showAccount, setShowAccount] = useState(false);
+      const [user, setUser] = useState(null);
+      const userId = user && user.id;
 
-      useEffect(() => { saveEntries(entries); }, [entries]);
+      // Anonimowe logowanie i pobranie wpisów z bazy
+      async function ensureSessionAndLoad({ migrateLocal = false } = {}) {
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          let u = session && session.user;
+          if (!u) {
+            const { data, error } = await sb.auth.signInAnonymously();
+            if (error) throw error;
+            u = data.user;
+          }
+          setUser(u);
+
+          const { data: rows, error: fetchErr } = await sb
+            .from("entries").select("*").order("created_at", { ascending: false });
+          if (fetchErr) throw fetchErr;
+
+          const local = loadEntries();
+          if (migrateLocal && (rows || []).length === 0 && local.length > 0) {
+            const insertRows = local.map(e => entryToRow(e, u.id));
+            const { data: inserted, error: insErr } = await sb
+              .from("entries").insert(insertRows).select();
+            if (insErr) { console.warn("Migracja localStorage nieudana:", insErr); }
+            const merged = (inserted || []).map(rowToEntry)
+              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setEntries(merged);
+            localStorage.removeItem(STORAGE_KEY);
+          } else {
+            setEntries((rows || []).map(rowToEntry));
+          }
+        } catch (e) {
+          console.error("Supabase auth/fetch error:", e);
+          setEntries(loadEntries()); // graceful fallback
+        }
+      }
+
+      useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          if (cancelled) return;
+          await ensureSessionAndLoad({ migrateLocal: true });
+        })();
+        // Sub na zmiany auth (TOKEN_REFRESHED, SIGNED_OUT, etc.) — odświeża user state
+        const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+          if (cancelled) return;
+          if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED") {
+            setUser(session && session.user);
+          }
+        });
+        return () => { cancelled = true; subscription.unsubscribe(); };
+      }, []);
+
       useEffect(() => {
         saveSettings(settings);
         document.documentElement.setAttribute("data-theme", settings.theme);
       }, [settings]);
 
-      function addEntry(entry) {
-        setEntries(prev => [entry, ...prev]);
+      async function addEntry(entry) {
+        if (!userId) return;
+        const row = entryToRow(entry, userId);
+        const { data, error } = await sb.from("entries").insert(row).select().single();
+        if (error) { console.error("insert:", error); return; }
+        setEntries(prev => [rowToEntry(data), ...prev]);
         setRoute({ name: "list" });
       }
-      function updateEntry(entry) {
-        setEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+      async function updateEntry(entry) {
+        if (!userId) return;
+        const row = entryToRow(entry, userId);
+        const { data, error } = await sb.from("entries")
+          .update({ title: row.title, content: row.content, mood: row.mood, tags: row.tags })
+          .eq("id", entry.id).select().single();
+        if (error) { console.error("update:", error); return; }
+        setEntries(prev => prev.map(e => e.id === entry.id ? rowToEntry(data) : e));
         setRoute({ name: "view", id: entry.id });
       }
-      function deleteEntry(id) {
+      async function deleteEntry(id) {
+        if (!userId) return;
+        const { error } = await sb.from("entries").delete().eq("id", id);
+        if (error) { console.error("delete:", error); return; }
         setEntries(prev => prev.filter(e => e.id !== id));
         setRoute({ name: "list" });
       }
@@ -846,7 +1231,8 @@
               onThemeChange={(theme) => setSettings(s => ({ ...s, theme }))}
               onAdd={() => setRoute({ name: "add" })}
               onOpen={(id) => setRoute({ name: "view", id })}
-              onOpenCategories={() => setShowCategories(true)} />
+              onOpenCategories={() => setShowCategories(true)}
+              onOpenAccount={() => setShowAccount(true)} />
           )}
           {route.name === "add" && (
             <EntryFormScreen categories={settings.categories}
@@ -868,6 +1254,11 @@
             <CategoriesModal categories={settings.categories}
               onChange={(categories) => setSettings(s => ({ ...s, categories }))}
               onClose={() => setShowCategories(false)} />
+          )}
+          {showAccount && (
+            <AccountModal user={user} hasEntries={entries.length > 0}
+              onAuthChange={() => ensureSessionAndLoad()}
+              onClose={() => setShowAccount(false)} />
           )}
         </div>
       );
