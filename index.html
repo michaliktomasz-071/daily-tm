@@ -14,6 +14,8 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase (anonimowe konto + zapis wpisów do bazy) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
@@ -456,7 +458,14 @@
       return <LucideIcon name={moodIconName(moodKey)} size={size} />;
     }
 
-    /* ---------------- Przechowywanie ---------------- */
+    /* ---------------- Supabase ---------------- */
+    const SUPABASE_URL = "https://chcxkkcnxpwhbhhmqqjy.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MgyAteLB9AFuCb0t5mfyFA_aQZORA_9";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "daily_tm_auth" }
+    });
+
+    /* ---------------- Lokalna cache (dla szybkiego startu + migracji) ---------------- */
     const STORAGE_KEY = "daily_tm_entries_v1";
     function loadEntries() {
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -466,6 +475,22 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
     const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+    /* Mapowanie wiersza DB ↔ wpisu w stanie aplikacji */
+    function rowToEntry(r) {
+      return {
+        id: r.id, title: r.title || "", content: r.content || "",
+        mood: r.mood || "neutral", tags: r.tags || [],
+        moonPhase: r.moon_phase || "new", createdAt: r.created_at
+      };
+    }
+    function entryToRow(e, userId) {
+      return {
+        id: e.id, user_id: userId, title: e.title || "", content: e.content || "",
+        mood: e.mood || "neutral", tags: e.tags || [],
+        moon_phase: e.moonPhase || "new", created_at: e.createdAt
+      };
+    }
 
     /* ---------------- Ustawienia (motyw + kategorie tagów) ---------------- */
     const SETTINGS_KEY = "daily_tm_settings_v1";
@@ -812,26 +837,87 @@
        APLIKACJA — prosty router stanu
        ===================================================== */
     function App() {
-      const [entries, setEntries] = useState(loadEntries);
+      const [entries, setEntries] = useState([]);
       const [settings, setSettings] = useState(loadSettings);
       const [route, setRoute] = useState({ name: "list", id: null });
       const [showCategories, setShowCategories] = useState(false);
+      const [userId, setUserId] = useState(null);
+      const [authError, setAuthError] = useState(null);
 
-      useEffect(() => { saveEntries(entries); }, [entries]);
+      // Anonimowe logowanie i pobranie wpisów z bazy
+      useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          try {
+            const { data: { session } } = await sb.auth.getSession();
+            let user = session && session.user;
+            if (!user) {
+              const { data, error } = await sb.auth.signInAnonymously();
+              if (error) throw error;
+              user = data.user;
+            }
+            if (cancelled) return;
+            setUserId(user.id);
+
+            const { data: rows, error: fetchErr } = await sb
+              .from("entries").select("*").order("created_at", { ascending: false });
+            if (fetchErr) throw fetchErr;
+            if (cancelled) return;
+
+            // Migracja lokalnych wpisów do bazy przy pierwszym logowaniu
+            const local = loadEntries();
+            if ((rows || []).length === 0 && local.length > 0) {
+              const insertRows = local.map(e => entryToRow(e, user.id));
+              const { data: inserted, error: insErr } = await sb
+                .from("entries").insert(insertRows).select();
+              if (insErr) { console.warn("Migracja localStorage nieudana:", insErr); }
+              if (!cancelled) {
+                const merged = (inserted || []).map(rowToEntry)
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setEntries(merged);
+                localStorage.removeItem(STORAGE_KEY);
+              }
+            } else if (!cancelled) {
+              setEntries((rows || []).map(rowToEntry));
+            }
+          } catch (e) {
+            console.error("Supabase auth/fetch error:", e);
+            if (!cancelled) {
+              setAuthError(e && e.message ? e.message : "Nie udało się połączyć z bazą.");
+              setEntries(loadEntries()); // graceful fallback — pokazujemy cache
+            }
+          }
+        })();
+        return () => { cancelled = true; };
+      }, []);
+
       useEffect(() => {
         saveSettings(settings);
         document.documentElement.setAttribute("data-theme", settings.theme);
       }, [settings]);
 
-      function addEntry(entry) {
-        setEntries(prev => [entry, ...prev]);
+      async function addEntry(entry) {
+        if (!userId) return;
+        const row = entryToRow(entry, userId);
+        const { data, error } = await sb.from("entries").insert(row).select().single();
+        if (error) { console.error("insert:", error); return; }
+        setEntries(prev => [rowToEntry(data), ...prev]);
         setRoute({ name: "list" });
       }
-      function updateEntry(entry) {
-        setEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
+      async function updateEntry(entry) {
+        if (!userId) return;
+        const row = entryToRow(entry, userId);
+        const { data, error } = await sb.from("entries")
+          .update({ title: row.title, content: row.content, mood: row.mood, tags: row.tags })
+          .eq("id", entry.id).select().single();
+        if (error) { console.error("update:", error); return; }
+        setEntries(prev => prev.map(e => e.id === entry.id ? rowToEntry(data) : e));
         setRoute({ name: "view", id: entry.id });
       }
-      function deleteEntry(id) {
+      async function deleteEntry(id) {
+        if (!userId) return;
+        const { error } = await sb.from("entries").delete().eq("id", id);
+        if (error) { console.error("delete:", error); return; }
         setEntries(prev => prev.filter(e => e.id !== id));
         setRoute({ name: "list" });
       }
