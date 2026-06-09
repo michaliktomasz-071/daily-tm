@@ -56,6 +56,72 @@
     }
     .app { display: flex; flex-direction: column; min-height: 100vh; }
     .screen { flex: 1; padding: 28px 24px 40px; animation: fade .18s ease; }
+
+    /* Desktop — sidebar + main pane */
+    @media (min-width: 900px) {
+      #root { max-width: none; box-shadow: none; background: var(--page); }
+      .app.desktop { display: grid; grid-template-columns: 420px 1fr; min-height: 100vh; }
+      .sidebar {
+        border-right: 1px solid var(--line);
+        height: 100vh; position: sticky; top: 0;
+        overflow-y: auto; background: var(--bg);
+        display: flex; flex-direction: column;
+      }
+      .sidebar .screen { padding: 0 0 100px; flex: 1; }
+      .sidebar .empty-headline { font-size: 28px; padding: 0 20px; }
+      .sidebar .list-header {
+        position: sticky; top: 0; z-index: 5;
+        background: var(--bg);
+        padding: 24px 20px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .sidebar .entries-grid,
+      .sidebar > .screen > div:not(.list-header) { padding: 0 20px; }
+      /* Delikatny scrollbar */
+      .sidebar { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+      .sidebar::-webkit-scrollbar { width: 6px; }
+      .sidebar::-webkit-scrollbar-track { background: transparent; }
+      .sidebar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+      .sidebar::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+      /* Ukryj duplikujące się logo i topbar w prawym panelu */
+      .main .topbar .brand { display: none; }
+    }
+    /* Krzyżyk "Zamknij" pokazujemy tylko na desktopie */
+    .close-view { display: none; }
+    @media (min-width: 900px) {
+      .close-view { display: inline-flex; }
+      .sidebar .fab {
+        position: absolute; left: auto; right: 20px; bottom: 24px;
+        transform: none; width: 52px; height: 52px;
+      }
+      .sidebar .fab:active { transform: scale(.96); }
+      .main {
+        padding: 56px 64px 64px;
+        max-width: 880px; margin: 0 auto; width: 100%;
+        box-sizing: border-box;
+      }
+      .main .screen { padding: 0; }
+      .main-empty {
+        height: 100%; min-height: 60vh;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--muted); text-align: center;
+      }
+      .main-empty h2 { font-weight: 300; font-size: 36px; margin: 0; letter-spacing: -.5px; }
+      .main-empty p { font-size: 16px; margin-top: 12px; }
+      .main-add-btn {
+        margin-top: 24px;
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--fg); color: var(--bg);
+        border: none; border-radius: 999px;
+        padding: 12px 22px; font-size: 15px; font-weight: 600;
+        font-family: inherit; cursor: pointer;
+        transition: transform .1s, opacity .15s;
+      }
+      .main-add-btn:hover { opacity: .9; }
+      .main-add-btn:active { transform: scale(.97); }
+      /* Ukryj FAB w sidebar — przycisk Dodaj wpis jest w main */
+      .sidebar .fab { display: none; }
+    }
     @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
 
     /* Typografia */
@@ -91,6 +157,7 @@
     }
     .entry:active { transform: scale(.99); }
     .entry:hover { box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+    .entry.selected { border-color: var(--fg); background: var(--chip); }
     .entry-icon {
       flex: none; width: 44px; height: 44px; border-radius: 12px;
       border: 1.5px solid var(--line); color: var(--fg);
@@ -933,7 +1000,7 @@
     /* =====================================================
        EKRAN 2 — LISTA WPISÓW
        ===================================================== */
-    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, onOpenAccount, categories, theme, onThemeChange }) {
+    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, onOpenAccount, categories, theme, onThemeChange, selectedId }) {
       const [filterTag, setFilterTag] = useState(null);
 
       // Kafelki dni — 14 dni wstecz + dziś + 30 dni do przodu
@@ -988,6 +1055,7 @@
 
       return (
         <div className="screen">
+          <div className="list-header">
           <div className="topbar">
             <div className="brand-row">
               <div className="brand"><DLogo /></div>
@@ -1044,6 +1112,7 @@
               </button>
             ))}
           </div>
+          </div>
 
           {entries.length === 0 ? (
             <div className="empty">
@@ -1060,11 +1129,11 @@
               </p>
             </div>
           ) : (
-            <div style={{marginTop: 24}}>
+            <div className="entries-grid" style={{marginTop: 24}}>
               {sortedItems.map(e => {
                 const firstTag = (e.tags && e.tags[0]) || null;
                 return (
-                  <div key={e.id} className="entry" onClick={() => onOpen(e.id)}>
+                  <div key={e.id} className={"entry" + (selectedId === e.id ? " selected" : "")} onClick={() => onOpen(selectedId === e.id ? null : e.id)}>
                     <div className="entry-icon">
                       <MoodIcon moodKey={e.mood} size={26} />
                     </div>
@@ -1104,6 +1173,7 @@
             <div style={{display:"flex", gap:4}}>
               <button className="iconbtn" onClick={() => onEdit(entry.id)} aria-label="Edytuj" title="Edytuj"><LucideIcon name="pencil" size={20} /></button>
               <button className="iconbtn" onClick={() => setConfirmDel(true)} aria-label="Usuń" title="Usuń"><LucideIcon name="trash" size={20} /></button>
+              <button className="iconbtn close-view" onClick={onBack} aria-label="Zamknij" title="Zamknij"><LucideIcon name="x" size={22} /></button>
             </div>
           </div>
 
@@ -1202,6 +1272,17 @@
     /* =====================================================
        APLIKACJA — prosty router stanu
        ===================================================== */
+    function useIsDesktop() {
+      const [is, setIs] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
+      useEffect(() => {
+        const mq = window.matchMedia("(min-width: 900px)");
+        const onChange = () => setIs(mq.matches);
+        mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange);
+        return () => mq.removeEventListener ? mq.removeEventListener("change", onChange) : mq.removeListener(onChange);
+      }, []);
+      return is;
+    }
+
     function App() {
       const [entries, setEntries] = useState([]);
       const [settings, setSettings] = useState(loadSettings);
@@ -1210,6 +1291,7 @@
       const [showAccount, setShowAccount] = useState(false);
       const [user, setUser] = useState(null);
       const userId = user && user.id;
+      const isDesktop = useIsDesktop();
 
       // Anonimowe logowanie i pobranie wpisów z bazy
       async function ensureSessionAndLoad({ migrateLocal = false } = {}) {
@@ -1295,33 +1377,34 @@
 
       const current = entries.find(e => e.id === route.id);
 
-      return (
-        <div className="app">
-          {route.name === "list" && (
-            <ListScreen entries={entries} categories={settings.categories}
-              theme={settings.theme}
-              onThemeChange={(theme) => setSettings(s => ({ ...s, theme }))}
-              onAdd={() => setRoute({ name: "add" })}
-              onOpen={(id) => setRoute({ name: "view", id })}
-              onOpenCategories={() => setShowCategories(true)}
-              onOpenAccount={() => setShowAccount(true)} />
-          )}
-          {route.name === "add" && (
-            <EntryFormScreen categories={settings.categories}
-              onSave={addEntry} onCancel={() => setRoute({ name: "list" })}
-              onOpenCategories={() => setShowCategories(true)} />
-          )}
-          {route.name === "edit" && current && (
-            <EntryFormScreen categories={settings.categories} initial={current}
-              onSave={updateEntry} onCancel={() => setRoute({ name: "view", id: current.id })}
-              onOpenCategories={() => setShowCategories(true)} />
-          )}
-          {route.name === "view" && (
-            <ViewScreen entry={current}
-              onBack={() => setRoute({ name: "list" })}
-              onEdit={(id) => setRoute({ name: "edit", id })}
-              onDelete={deleteEntry} />
-          )}
+      const listScreen = (
+        <ListScreen entries={entries} categories={settings.categories}
+          theme={settings.theme}
+          onThemeChange={(theme) => setSettings(s => ({ ...s, theme }))}
+          onAdd={() => setRoute({ name: "add" })}
+          onOpen={(id) => setRoute(id ? { name: "view", id } : { name: "list", id: null })}
+          onOpenCategories={() => setShowCategories(true)}
+          onOpenAccount={() => setShowAccount(true)}
+          selectedId={isDesktop ? route.id : null} />
+      );
+      const formAdd = (
+        <EntryFormScreen categories={settings.categories}
+          onSave={addEntry} onCancel={() => setRoute({ name: "list" })}
+          onOpenCategories={() => setShowCategories(true)} />
+      );
+      const formEdit = current && (
+        <EntryFormScreen categories={settings.categories} initial={current}
+          onSave={updateEntry} onCancel={() => setRoute({ name: "view", id: current.id })}
+          onOpenCategories={() => setShowCategories(true)} />
+      );
+      const viewEntry = (
+        <ViewScreen entry={current}
+          onBack={() => setRoute({ name: "list" })}
+          onEdit={(id) => setRoute({ name: "edit", id })}
+          onDelete={deleteEntry} />
+      );
+      const modals = (
+        <>
           {showCategories && (
             <CategoriesModal categories={settings.categories}
               onChange={(categories) => setSettings(s => ({ ...s, categories }))}
@@ -1332,6 +1415,41 @@
               onAuthChange={() => ensureSessionAndLoad()}
               onClose={() => setShowAccount(false)} />
           )}
+        </>
+      );
+
+      if (isDesktop) {
+        let mainPane;
+        if (route.name === "add") mainPane = formAdd;
+        else if (route.name === "edit" && current) mainPane = formEdit;
+        else if (route.name === "view" && current) mainPane = viewEntry;
+        else mainPane = (
+          <div className="main-empty">
+            <div>
+              <h2>Wybierz wpis z listy.</h2>
+              <p>Albo dodaj nowy poniżej.</p>
+              <button className="main-add-btn" onClick={() => setRoute({ name: "add" })}>
+                <LucideIcon name="plus" size={20} /> Dodaj wpis
+              </button>
+            </div>
+          </div>
+        );
+        return (
+          <div className="app desktop">
+            <aside className="sidebar">{listScreen}</aside>
+            <main className="main">{mainPane}</main>
+            {modals}
+          </div>
+        );
+      }
+
+      return (
+        <div className="app">
+          {route.name === "list" && listScreen}
+          {route.name === "add" && formAdd}
+          {route.name === "edit" && current && formEdit}
+          {route.name === "view" && viewEntry}
+          {modals}
         </div>
       );
     }
