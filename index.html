@@ -416,6 +416,37 @@
       width: min(360px, calc(100% - 32px));
       text-align: center; padding: 26px 22px 22px;
     }
+    /* Ekran logowania */
+    .login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: var(--page);
+    }
+    .login-card {
+      width: 100%; max-width: 420px;
+      background: var(--bg); border: 1px solid var(--line); border-radius: 24px;
+      padding: 36px 28px 28px; box-sizing: border-box;
+      box-shadow: 0 8px 40px rgba(0,0,0,.04);
+    }
+    .login-brand { display: flex; justify-content: center; margin-bottom: 8px; }
+    .login-title { text-align: center; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.5px; }
+    .login-sub { text-align: center; color: var(--muted); margin: 6px 0 0; font-size: 15px; }
+    .login-divider {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--muted); font-size: 12px;
+      margin: 18px 0 14px;
+    }
+    .login-divider::before, .login-divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--line);
+    }
+    .anon-btn {
+      width: 100%; background: transparent; color: var(--fg);
+      border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: background .12s;
+    }
+    .anon-btn:hover { background: var(--chip); }
+    .boot-loader { min-height: 100vh; }
+
     .confirm .icon-wrap {
       width: 56px; height: 56px; border-radius: 999px;
       background: #c62828; color: #ffffff;
@@ -884,6 +915,11 @@
                     {mode === "signup" ? "Zaloguj się" : "Zarejestruj się"}
                   </button>
                 </p>
+                {isAnon && (
+                  <button className="signout-btn" style={{marginTop: 10}} onClick={handleSignout} disabled={busy}>
+                    <LucideIcon name="logOut" size={16} /> Wyloguj się
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -1272,6 +1308,74 @@
     /* =====================================================
        APLIKACJA — prosty router stanu
        ===================================================== */
+    function LoginScreen({ onAuth, onAnon }) {
+      const [mode, setMode] = useState("signin");
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState(null);
+      const [info, setInfo] = useState(null);
+      const canSubmit = email.trim() && password.length >= 6 && !busy;
+
+      async function submit(e) {
+        e.preventDefault();
+        if (!canSubmit) return;
+        setErr(null); setInfo(null); setBusy(true);
+        try {
+          if (mode === "signup") {
+            const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
+            if (error) throw error;
+            if (!data.session) {
+              setInfo("Wysłaliśmy maila weryfikacyjnego. Kliknij link w mailu, żeby zakończyć rejestrację.");
+            } else {
+              await onAuth();
+            }
+          } else {
+            const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+            if (error) throw error;
+            await onAuth();
+          }
+        } catch (e) { setErr(e.message || "Coś poszło nie tak."); }
+        finally { setBusy(false); }
+      }
+
+      async function anon() {
+        setErr(null); setBusy(true);
+        try { await onAnon(); }
+        catch (e) { setErr(e.message || "Nie udało się utworzyć anonimowej sesji."); }
+        finally { setBusy(false); }
+      }
+
+      return (
+        <div className="login-screen">
+          <div className="login-card">
+            <div className="login-brand"><DLogo width={68} height={60} /></div>
+            <h1 className="login-title">dziennik.</h1>
+            <p className="login-sub">Twoja przestrzeń na refleksji.</p>
+            <form className="account-form" onSubmit={submit} style={{marginTop: 24}}>
+              <input type="email" placeholder="E-mail" value={email}
+                     onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+              <input type="password" placeholder="Hasło (min. 6 znaków)" value={password}
+                     onChange={e => setPassword(e.target.value)}
+                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                     required minLength={6} />
+              <button type="submit" className="submit-btn" disabled={!canSubmit}>
+                {busy ? "..." : (mode === "signup" ? "Zarejestruj się" : "Zaloguj się")}
+              </button>
+            </form>
+            {err && <div className="account-msg error">{err}</div>}
+            {info && <div className="account-msg info">{info}</div>}
+            <p className="account-switch">
+              {mode === "signup" ? "Masz już konto? " : "Nie masz jeszcze konta? "}
+              <button type="button" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setErr(null); setInfo(null); }}>
+                {mode === "signup" ? "Zaloguj się" : "Zarejestruj się"}
+              </button>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     function useIsDesktop() {
       const [is, setIs] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
       useEffect(() => {
@@ -1290,20 +1394,23 @@
       const [showCategories, setShowCategories] = useState(false);
       const [showAccount, setShowAccount] = useState(false);
       const [user, setUser] = useState(null);
+      const [authReady, setAuthReady] = useState(false);
       const userId = user && user.id;
       const isDesktop = useIsDesktop();
 
       // Anonimowe logowanie i pobranie wpisów z bazy
-      async function ensureSessionAndLoad({ migrateLocal = false } = {}) {
+      async function ensureSessionAndLoad({ migrateLocal = false, autoAnon = false } = {}) {
         try {
           const { data: { session } } = await sb.auth.getSession();
           let u = session && session.user;
-          if (!u) {
+          if (!u && autoAnon) {
             const { data, error } = await sb.auth.signInAnonymously();
             if (error) throw error;
             u = data.user;
           }
           setUser(u);
+          setAuthReady(true);
+          if (!u) { setEntries([]); return; }
 
           const { data: rows, error: fetchErr } = await sb
             .from("entries").select("*").order("created_at", { ascending: false });
@@ -1324,6 +1431,7 @@
           }
         } catch (e) {
           console.error("Supabase auth/fetch error:", e);
+          setAuthReady(true);
           setEntries(loadEntries()); // graceful fallback
         }
       }
@@ -1332,7 +1440,7 @@
         let cancelled = false;
         (async () => {
           if (cancelled) return;
-          await ensureSessionAndLoad({ migrateLocal: true });
+          await ensureSessionAndLoad({ migrateLocal: true, autoAnon: false });
         })();
         // Sub na zmiany auth (TOKEN_REFRESHED, SIGNED_OUT, etc.) — odświeża user state
         const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
@@ -1417,6 +1525,21 @@
           )}
         </>
       );
+
+      // Ekran logowania — pokazywany jak nie ma sesji
+      if (authReady && !user) {
+        return (
+          <div className="app">
+            <LoginScreen
+              onAuth={async () => { await ensureSessionAndLoad(); }}
+              onAnon={async () => { await ensureSessionAndLoad({ autoAnon: true }); }}
+            />
+          </div>
+        );
+      }
+      if (!authReady) {
+        return <div className="app"><div className="boot-loader" /></div>;
+      }
 
       if (isDesktop) {
         let mainPane;
