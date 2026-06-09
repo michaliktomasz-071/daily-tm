@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>DAILY TM</title>
 
-  <!-- Inter -->
+  <!-- Noto Serif -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet" />
 
   <!-- React + Babel z CDN (brak kroku budowania) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -41,8 +41,10 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; background: var(--page); }
     body {
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-family: "Noto Serif", Georgia, "Times New Roman", serif;
       color: var(--fg);
+      font-size: 16px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
     #root {
@@ -95,16 +97,17 @@
       display: flex; align-items: center; justify-content: center;
     }
     .entry-mid { flex: 1; min-width: 0; display:flex; flex-direction:column; gap: 2px; }
-    .entry-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; margin: 0;
+    .entry-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; margin: 0;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .entry-snippet { color: var(--muted); font-size: 13.5px; margin: 0; line-height: 1.35;
+    .entry-snippet { color: var(--muted); font-size: 15px; margin: 0; line-height: 1.4;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .entry-right { flex: none; display:flex; flex-direction:column; align-items:flex-end; gap: 6px; color: var(--muted); }
-    .entry-right .date { font-size: 11px; }
+    .entry-right .date { font-size: 13px; }
+    .entry-right .entry-glyph { display:flex; align-items:center; justify-content:center; width: 20px; height: 20px; }
     .entry-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top: 10px; }
 
     .chip {
-      background: var(--chip); border-radius: 999px; padding: 6px 12px; font-size: 12.5px;
+      background: var(--chip); border-radius: 999px; padding: 7px 14px; font-size: 14px;
       font-weight: 600; display:inline-flex; align-items:center; gap:6px; border: none; color: var(--fg);
     }
     .chip.removable { cursor: pointer; }
@@ -140,14 +143,14 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-top: 24px; gap: 12px;
     }
-    .meta-date { font-size: 11px; color: var(--muted); line-height: 1; }
+    .meta-date { font-size: 13px; color: var(--muted); line-height: 1; }
     .phase-chip {
       display:inline-flex; align-items:center; gap: 8px;
-      font-size: 11px; color: var(--muted); font-weight: 400; line-height: 1;
+      font-size: 13px; color: var(--muted); font-weight: 400; line-height: 1;
     }
     .phase-chip svg { display:block; }
-    .title-big { font-size: 20px; font-weight: 800; letter-spacing: -.4px; margin: 22px 0 0; line-height: 1.2; }
-    .body-text { font-size: 16px; line-height: 1.55; color: var(--fg); white-space: pre-wrap; margin: 14px 0 0; }
+    .title-big { font-size: 24px; font-weight: 800; letter-spacing: -.4px; margin: 22px 0 0; line-height: 1.25; }
+    .body-text { font-size: 18px; line-height: 1.6; color: var(--fg); white-space: pre-wrap; margin: 14px 0 0; }
     .body-text.muted { color: var(--muted); }
 
     .moods-line { display:flex; align-items:center; gap: 10px; flex-wrap:wrap; }
@@ -156,31 +159,27 @@
     .moods-line .icons { display:flex; gap: 10px; flex-wrap: wrap; }
 
     /* Suwak nastroju */
-    .mood-slider { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
-    .mood-display {
-      width: 72px; height: 72px; border-radius: 999px;
-      border: 1.5px solid var(--fg); background: var(--chip-bg); color: var(--fg);
-      display: flex; align-items: center; justify-content: center; flex: none;
-    }
+    .mood-slider { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
     .mood-track {
-      width: 100%; position: relative; height: 32px;
+      width: 100%; position: relative; height: 48px;
       display: flex; align-items: center;
     }
     .mood-track .line {
-      position: absolute; left: 12px; right: 12px; top: 50%;
+      position: absolute; left: 24px; right: 24px; top: 50%;
       height: 2px; background: var(--line); transform: translateY(-50%);
       border-radius: 1px; pointer-events: none;
     }
-    .mood-track .ticks {
-      position: absolute; left: 12px; right: 12px; top: 50%;
-      display: flex; align-items: center; justify-content: space-between;
-      transform: translateY(-50%); pointer-events: none; z-index: 1;
+    .mood-thumb {
+      position: absolute; top: 50%;
+      width: 48px; height: 48px; border-radius: 999px;
+      border: none; background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      transform: translate(-50%, -50%);
+      left: calc(24px + var(--p, 0) * (100% - 48px));
+      pointer-events: none; z-index: 1;
+      transition: left 120ms ease;
     }
-    .mood-tick {
-      width: 8px; height: 8px; border-radius: 999px;
-      background: var(--line); border: none; padding: 0;
-    }
-    /* Suwak — natywny range z widocznym kciukiem */
+    /* Suwak — natywny range z niewidocznym kciukiem */
     .mood-range {
       position: absolute; inset: 0; width: 100%; height: 100%;
       -webkit-appearance: none; appearance: none;
@@ -191,14 +190,14 @@
     .mood-range::-webkit-slider-runnable-track { height: 100%; background: transparent; }
     .mood-range::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
-      width: 24px; height: 24px; border-radius: 999px;
-      background: var(--fg); border: none; cursor: grab;
+      width: 48px; height: 48px; border-radius: 999px;
+      background: transparent; border: none; cursor: grab;
     }
     .mood-range:active::-webkit-slider-thumb { cursor: grabbing; }
     .mood-range::-moz-range-track { background: transparent; height: 100%; border: none; }
     .mood-range::-moz-range-thumb {
-      width: 24px; height: 24px; border-radius: 999px;
-      background: var(--fg); border: none; cursor: grab;
+      width: 48px; height: 48px; border-radius: 999px;
+      background: transparent; border: none; cursor: grab;
     }
     .mood-range:focus { outline: none; }
 
@@ -290,8 +289,8 @@
 
     /* Podgląd */
     .view-moon { font-size: 22px; }
-    .view-meta { color: var(--muted); font-size: 14px; margin-top: 10px; display:flex; flex-wrap:wrap; gap: 14px; align-items:center; }
-    .view-body { font-size: 18px; line-height: 1.6; white-space: pre-wrap; margin-top: 26px; }
+    .view-meta { color: var(--muted); font-size: 15px; margin-top: 10px; display:flex; flex-wrap:wrap; gap: 14px; align-items:center; }
+    .view-body { font-size: 19px; line-height: 1.65; white-space: pre-wrap; margin-top: 26px; }
     .view-mood { display:flex; align-items:center; gap: 10px; margin-top: 26px; }
 
     /* Ustawienia */
@@ -405,10 +404,10 @@
     }
     .day-card:hover { border-color: var(--muted); }
     .day-card .dow {
-      font-size: 11px; font-weight: 700; color: var(--muted);
+      font-size: 12px; font-weight: 700; color: var(--muted);
       letter-spacing: .3px; text-transform: lowercase;
     }
-    .day-card .dom { font-size: 13px; font-weight: 400; color: var(--fg); letter-spacing: -.2px; }
+    .day-card .dom { font-size: 14px; font-weight: 400; color: var(--fg); letter-spacing: -.2px; }
     .day-card.is-today .dom { font-weight: 800; }
     .day-card .phase { color: var(--fg); margin-top: 2px; display:flex; }
     .day-card.active { border-color: var(--fg); border-width: 1.5px; padding: 9px 7px 7px; }
@@ -420,6 +419,21 @@
 
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo } = React;
+
+    const FLUENT_BASE = "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets";
+    // Apple emoji (zestaw używany m.in. przez WhatsApp), hostowane na jsdelivr.
+    function emojiCodes(str) {
+      const out = [];
+      for (const ch of str) {
+        const cp = ch.codePointAt(0);
+        if (cp === 0xFE0F) continue; // pomiń selektor wariantu
+        out.push(cp.toString(16));
+      }
+      return out.join("-");
+    }
+    function waEmoji(ch) {
+      return "https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/" + emojiCodes(ch) + ".png";
+    }
 
     /* ---------------- Faza księżyca ---------------- */
     // Zwraca indeks 0..7 fazy na podstawie daty (algorytm bez API).
@@ -434,14 +448,22 @@
       return idx;
     }
     const MOON = [
-      { key: "new",             label: "Nów",                 icon: "🌑" },
-      { key: "waxing_crescent", label: "Przybywający sierp",  icon: "🌒" },
-      { key: "first_quarter",   label: "Pierwsza kwadra",     icon: "🌓" },
-      { key: "waxing_gibbous",  label: "Przybywający garb",   icon: "🌔" },
-      { key: "full",            label: "Pełnia",              icon: "🌕" },
-      { key: "waning_gibbous",  label: "Ubywający garb",      icon: "🌖" },
-      { key: "last_quarter",    label: "Ostatnia kwadra",     icon: "🌗" },
-      { key: "waning_crescent", label: "Ubywający sierp",     icon: "🌘" },
+      { key: "new",             label: "Nów",                 icon: "🌑",
+        fluent: FLUENT_BASE + "/New%20moon/3D/new_moon_3d.png" },
+      { key: "waxing_crescent", label: "Przybywający sierp",  icon: "🌒",
+        fluent: FLUENT_BASE + "/Waxing%20crescent%20moon/3D/waxing_crescent_moon_3d.png" },
+      { key: "first_quarter",   label: "Pierwsza kwadra",     icon: "🌓",
+        fluent: FLUENT_BASE + "/First%20quarter%20moon/3D/first_quarter_moon_3d.png" },
+      { key: "waxing_gibbous",  label: "Przybywający garb",   icon: "🌔",
+        fluent: FLUENT_BASE + "/Waxing%20gibbous%20moon/3D/waxing_gibbous_moon_3d.png" },
+      { key: "full",            label: "Pełnia",              icon: "🌕",
+        fluent: FLUENT_BASE + "/Full%20moon/3D/full_moon_3d.png" },
+      { key: "waning_gibbous",  label: "Ubywający garb",      icon: "🌖",
+        fluent: FLUENT_BASE + "/Waning%20gibbous%20moon/3D/waning_gibbous_moon_3d.png" },
+      { key: "last_quarter",    label: "Ostatnia kwadra",     icon: "🌗",
+        fluent: FLUENT_BASE + "/Last%20quarter%20moon/3D/last_quarter_moon_3d.png" },
+      { key: "waning_crescent", label: "Ubywający sierp",     icon: "🌘",
+        fluent: FLUENT_BASE + "/Waning%20crescent%20moon/3D/waning_crescent_moon_3d.png" },
     ];
     function moonForDate(d) { return MOON[moonPhaseIndex(d)]; }
     function moonByKey(key) { return MOON.find(m => m.key === key) || MOON[0]; }
@@ -459,6 +481,16 @@
       waning_crescent:  [0.25, false],
     };
     function MoonGlyph({ phaseKey, size = 22 }) {
+      const [failed, setFailed] = React.useState(false);
+      const moon = MOON.find(m => m.key === phaseKey) || MOON[0];
+      if (!failed && moon.icon) {
+        return (
+          <img src={waEmoji(moon.icon)} alt=""
+               width={size} height={size}
+               onError={() => setFailed(true)}
+               style={{ display: "block", width: size, height: size, objectFit: "contain", userSelect: "none", pointerEvents: "none" }} />
+        );
+      }
       const [f, waxing] = MOON_GEO[phaseKey] || MOON_GEO.new;
       const cx = 12, cy = 12, r = 9.2, sw = 1.5;
       const T = `${cx} ${cy - r}`, B = `${cx} ${cy + r}`;
@@ -512,6 +544,24 @@
     };
     const CATEGORY_ICON = { praca:"monitor", dom:"home", zakupy:"shoppingCart", rozrywka:"partyPopper" };
     function iconForTag(name) { return CATEGORY_ICON[(name || "").toLowerCase()] || "tag"; }
+    const TAG_EMOJI = {
+      praca:    "\u{1F4BB}", // 💻
+      dom:      "\u{1F3E0}", // 🏠
+      zakupy:   "\u{1F6D2}", // 🛒
+      rozrywka: "\u{1F389}", // 🎉
+    };
+    const TAG_EMOJI_DEFAULT = "\u{1F3F7}\u{FE0F}"; // 🏷️
+    function emojiForTag(name) { return TAG_EMOJI[(name || "").toLowerCase()] || TAG_EMOJI_DEFAULT; }
+    function TagIcon({ name, size = 14, strokeWidth = 2 }) {
+      const [failed, setFailed] = React.useState(false);
+      if (failed) return <LucideIcon name={iconForTag(name)} size={size} strokeWidth={strokeWidth} />;
+      return (
+        <img src={waEmoji(emojiForTag(name))} alt=""
+             width={size} height={size}
+             onError={() => setFailed(true)}
+             style={{ display: "block", width: size, height: size, objectFit: "contain", userSelect: "none", pointerEvents: "none" }} />
+      );
+    }
     function DLogo({ width = 51, height = 45 }) {
       return (
         <svg width={width} height={height} viewBox="0 0 69 57" fill="currentColor" style={{display:"block"}}>
@@ -533,12 +583,29 @@
 
     /* ---------------- Nastrój (ikony Lucide) ---------------- */
     const MOODS = [
-      { key: "very_bad",  label: "Bardzo źle",     icon: "angry" },
-      { key: "bad",       label: "Źle",            icon: "frown" },
-      { key: "neutral",   label: "Neutralnie",     icon: "meh" },
-      { key: "good",      label: "Dobrze",         icon: "smile" },
-      { key: "very_good", label: "Bardzo dobrze",  icon: "laugh" },
+      { key: "very_bad",  label: "Bardzo źle",     icon: "angry", emoji: "\u{1F621}", color: "#e53935",
+        fluent: FLUENT_BASE + "/Pouting%20face/3D/pouting_face_3d.png" },
+      { key: "bad",       label: "Źle",            icon: "frown", emoji: "\u{1F61E}", color: "#fb8c00",
+        fluent: FLUENT_BASE + "/Disappointed%20face/3D/disappointed_face_3d.png" },
+      { key: "neutral",   label: "Neutralnie",     icon: "meh",   emoji: "\u{1F610}", color: "#f4c430",
+        fluent: FLUENT_BASE + "/Neutral%20face/3D/neutral_face_3d.png" },
+      { key: "good",      label: "Dobrze",         icon: "smile", emoji: "\u{1F642}", color: "#7cb342",
+        fluent: FLUENT_BASE + "/Slightly%20smiling%20face/3D/slightly_smiling_face_3d.png" },
+      { key: "very_good", label: "Bardzo dobrze",  icon: "laugh", emoji: "\u{1F604}", color: "#2e7d32",
+        fluent: FLUENT_BASE + "/Grinning%20face%20with%20smiling%20eyes/3D/grinning_face_with_smiling_eyes_3d.png" },
     ];
+    function moodFluent(key) {
+      const m = MOODS.find(x => x.key === key);
+      return m ? m.fluent : "";
+    }
+    function moodColor(key) {
+      const m = MOODS.find(x => x.key === key);
+      return m ? m.color : "currentColor";
+    }
+    function moodEmoji(key) {
+      const m = MOODS.find(x => x.key === key);
+      return m ? m.emoji : "\u{1F610}";
+    }
     // Kolejność na suwaku: od najradośniejszego (lewo) do najmniej (prawo)
     const MOOD_ORDER = ["very_good", "good", "neutral", "bad", "very_bad"];
     function moodIconName(key) {
@@ -546,7 +613,23 @@
       return m ? m.icon : "meh";
     }
     function MoodIcon({ moodKey, size = 30 }) {
-      return <LucideIcon name={moodIconName(moodKey)} size={size} />;
+      const [failed, setFailed] = React.useState(false);
+      if (failed) {
+        return (
+          <span style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: size, lineHeight: 1,
+            fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla","EmojiOne Color","Android Emoji",sans-serif',
+            fontVariantEmoji: "emoji"
+          }}>{moodEmoji(moodKey)}</span>
+        );
+      }
+      return (
+        <img src={waEmoji(moodEmoji(moodKey))} alt=""
+             width={size} height={size}
+             onError={() => setFailed(true)}
+             style={{ display: "block", width: size, height: size, objectFit: "contain", userSelect: "none", pointerEvents: "none" }} />
+      );
     }
 
     /* ---------------- Supabase ---------------- */
@@ -805,13 +888,12 @@
             <div className="moods-line stack">
               <span className="label">Nastrój:</span>
               <div className="mood-slider">
-                <div className="mood-display" title={MOODS.find(m => m.key === mood)?.label}>
-                  <MoodIcon moodKey={mood} size={40} />
-                </div>
                 <div className="mood-track">
                   <div className="line"></div>
-                  <div className="ticks">
-                    {MOOD_ORDER.map(m => (<span key={m} className="mood-tick" />))}
+                  <div className="mood-thumb"
+                       style={{ "--p": MOOD_ORDER.indexOf(mood) / (MOOD_ORDER.length - 1) }}
+                       title={MOODS.find(m => m.key === mood)?.label}>
+                    <MoodIcon moodKey={mood} size={28} />
                   </div>
                   <input type="range" min={0} max={4} step={1}
                          value={MOOD_ORDER.indexOf(mood)}
@@ -831,7 +913,6 @@
                   <button key={t} type="button"
                           className={"tag-pill" + (tags.includes(t) ? " active" : "")}
                           onClick={() => toggleTag(t)}>
-                    <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
                     {t}
                   </button>
                 ))}
@@ -857,7 +938,7 @@
 
       // Kafelki dni — 14 dni wstecz + dziś + 30 dni do przodu
       const DOW_SHORT = ["nd","pn","wt","śr","cz","pt","sb"];
-      const DAYS_BACK = 14, DAYS_FORWARD = 30;
+      const DAYS_BACK = 30, DAYS_FORWARD = 0;
       function dateKey(d) {
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       }
@@ -882,13 +963,8 @@
       React.useEffect(() => {
         const el = dayStripRef.current;
         if (!el) return;
-        // Wycentruj „Dziś" przy pierwszym renderze (niezależnie od stanu zaznaczenia)
-        const cards = el.querySelectorAll(".day-card");
-        const todayCard = cards[DAYS_BACK];
-        if (todayCard) {
-          const offset = todayCard.offsetLeft - (el.clientWidth - todayCard.clientWidth) / 2;
-          el.scrollLeft = Math.max(0, offset);
-        }
+        // Przesuń pasek na koniec — „Dziś" jest ostatnim kafelkiem.
+        el.scrollLeft = el.scrollWidth;
       }, []);
 
       const filtered = useMemo(() => {
@@ -942,7 +1018,6 @@
               <button className={"tag-pill" + (filterTag === null ? " active" : "")} onClick={() => setFilterTag(null)}>Wszystkie</button>
               {categories.map(t => (
                 <button key={t} className={"tag-pill" + (filterTag === t ? " active" : "")} onClick={() => setFilterTag(t)}>
-                  <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
                   {t}
                 </button>
               ))}
@@ -991,7 +1066,7 @@
                 return (
                   <div key={e.id} className="entry" onClick={() => onOpen(e.id)}>
                     <div className="entry-icon">
-                      <LucideIcon name={firstTag ? iconForTag(firstTag) : "tag"} size={22} strokeWidth={1.8} />
+                      <MoodIcon moodKey={e.mood} size={26} />
                     </div>
                     <div className="entry-mid">
                       <h3 className="entry-title">{e.title || "(bez tytułu)"}</h3>
@@ -999,8 +1074,7 @@
                     </div>
                     <div className="entry-right">
                       <span className="date">{fmtDate(e.createdAt)}</span>
-                      <MoodIcon moodKey={e.mood} size={20} />
-                      <MoonGlyph phaseKey={e.moonPhase} size={16} />
+                      <span className="entry-glyph"><MoonGlyph phaseKey={e.moonPhase} size={18} /></span>
                     </div>
                   </div>
                 );
@@ -1054,7 +1128,6 @@
             <span className="nastroj">Nastrój:</span>
             {entry.tags && entry.tags.map(t => (
               <span key={t} className="tag-pill" style={{cursor:"default"}}>
-                <LucideIcon name={iconForTag(t)} size={14} strokeWidth={2} />
                 {t}
               </span>
             ))}
@@ -1112,7 +1185,7 @@
                 {categories.map(t => (
                   <div key={t} className="cat-row">
                     <span className="name">
-                      <LucideIcon name={iconForTag(t)} size={16} strokeWidth={1.8} />
+                      <TagIcon name={t} size={18} />
                       {t}
                     </span>
                     <button className="cat-del" onClick={() => remove(t)} aria-label={"Usuń " + t}>
