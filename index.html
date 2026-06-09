@@ -265,14 +265,14 @@
     }
     .tagbar::-webkit-scrollbar { display:none; }
     .tag-pill {
-      flex:none; border: 1px solid var(--line); background: var(--chip-bg); border-radius: 999px;
+      flex:none; border: 1px solid var(--line); background: var(--bg); border-radius: 999px;
       padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--fg);
       font-family: inherit; white-space: nowrap; transition: all .14s;
       display: inline-flex; align-items: center; gap: 6px;
       scroll-snap-align: start;
     }
     .tag-pill svg { color: var(--muted); }
-    .tag-pill.active { border-color: var(--fg); border-width: 1.5px; padding: 6px 13px; font-weight: 700; }
+    .tag-pill.active { border-color: var(--muted); border-width: 1px; font-weight: 700; }
     .tag-pill.select { color: var(--muted); }
     .tag-pill.select.active { color: var(--fg); }
     .tag-pill.add { width: 34px; height: 34px; padding: 0; justify-content: center; color: var(--fg); }
@@ -410,7 +410,7 @@
     .day-card .dom { font-size: 14px; font-weight: 400; color: var(--fg); letter-spacing: -.2px; }
     .day-card.is-today .dom { font-weight: 800; }
     .day-card .phase { color: var(--fg); margin-top: 2px; display:flex; }
-    .day-card.active { border-color: var(--fg); border-width: 1.5px; padding: 9px 7px 7px; }
+    .day-card.active { border-color: var(--muted); border-width: 1px; }
     .day-card.active .dow { color: var(--fg); }
   </style>
 </head>
@@ -1185,7 +1185,6 @@
                 {categories.map(t => (
                   <div key={t} className="cat-row">
                     <span className="name">
-                      <TagIcon name={t} size={18} />
                       {t}
                     </span>
                     <button className="cat-del" onClick={() => remove(t)} aria-label={"Usuń " + t}>
