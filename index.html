@@ -121,6 +121,10 @@
       .main-add-btn:active { transform: scale(.97); }
       /* Ukryj FAB w sidebar — przycisk Dodaj wpis jest w main */
       .sidebar .fab { display: none; }
+      .sidebar .quick-add {
+        position: sticky; bottom: 16px; left: auto; transform: none;
+        margin: 16px 20px 0; width: auto;
+      }
     }
     @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
 
@@ -209,6 +213,7 @@
     .meta-row {
       display: flex; align-items: center; justify-content: space-between;
       margin-top: 24px; gap: 12px;
+      padding-bottom: 14px; border-bottom: 1px solid var(--line);
     }
     .meta-date { font-size: 13px; color: var(--muted); line-height: 1; }
     .phase-chip {
@@ -313,8 +318,31 @@
       transition: transform .1s;
     }
     .fab:active { transform: translateX(-50%) scale(.96); }
-    /* odstęp, by ostatnie wpisy nie chowały się pod FAB */
+    /* odstęp, by ostatnie wpisy nie chowały się pod bottom barem */
     .list-bottom-pad { height: 96px; }
+    .quick-add {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+      width: min(440px, calc(100% - 32px));
+      display: flex; gap: 10px; align-items: center;
+      background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+      padding: 6px 6px 6px 8px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.08);
+      z-index: 20;
+    }
+    .quick-add-input {
+      flex: 1; border: none; background: transparent;
+      text-align: left; color: var(--muted);
+      font-family: inherit; font-size: 15px; cursor: text; padding: 12px 14px;
+    }
+    .quick-add-input:hover { color: var(--fg); }
+    .quick-add-mic {
+      flex: none; width: 44px; height: 44px; border-radius: 50%;
+      border: none; background: var(--fg); color: var(--bg);
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: transform .1s, opacity .15s;
+    }
+    .quick-add-mic:hover { opacity: .9; }
+    .quick-add-mic:active { transform: scale(.95); }
 
     /* Sort menu */
     .sort-row { display:flex; gap:8px; margin: 4px 0 4px; }
@@ -446,6 +474,72 @@
     }
     .anon-btn:hover { background: var(--chip); }
     .boot-loader { min-height: 100vh; }
+
+    /* Transkrypcja głosowa */
+    .action-row {
+      display: flex; justify-content: center; align-items: center; gap: 18px;
+      margin-top: 28px;
+    }
+    .round-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; font-family: inherit;
+      transition: background .15s, transform .1s, opacity .15s;
+    }
+    .round-btn:active:not(:disabled) { transform: scale(.95); }
+    .round-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .round-btn-ghost {
+      border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+    }
+    .round-btn-ghost:hover:not(:disabled) { background: var(--chip); }
+    .round-btn-primary {
+      border: none; background: var(--fg); color: var(--bg);
+    }
+    .voice-error {
+      margin-top: 10px; padding: 10px 14px;
+      background: #fdecea; color: #b71c1c; border-radius: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      font-size: 13px;
+    }
+    :root[data-theme="dark"] .voice-error { background: #3a1414; color: #ff8a80; }
+    .voice-error button {
+      background: transparent; border: none; color: inherit; cursor: pointer;
+      display: inline-flex; align-items: center; padding: 4px;
+    }
+    .rec-panel {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+      padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15); z-index: 50;
+    }
+    .rec-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #e53935;
+      animation: rec-pulse 1s infinite; flex: none;
+    }
+    @keyframes rec-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+    .rec-timer { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--fg); min-width: 44px; }
+    .rec-stop, .rec-cancel {
+      border: none; border-radius: 999px; padding: 8px 14px;
+      font-weight: 600; cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .rec-stop { background: var(--fg); color: var(--bg); }
+    .rec-cancel { background: transparent; color: var(--muted); }
+    .process-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center; z-index: 60;
+    }
+    .process-card {
+      background: var(--bg); border-radius: 18px; padding: 28px 32px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      min-width: 240px; box-shadow: 0 12px 40px rgba(0,0,0,.2);
+    }
+    .process-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid var(--line); border-top-color: var(--fg);
+      animation: spin 1s linear infinite;
+    }
+    .process-text { color: var(--fg); font-size: 14px; }
+    @keyframes spin { to { transform: rotate(360deg) } }
 
     .confirm .icon-wrap {
       width: 56px; height: 56px; border-radius: 999px;
@@ -623,6 +717,8 @@
       smile: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M8 14s1.5 2 4 2 4-2 4-2"}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
       laugh: [["circle",{cx:12,cy:12,r:10}],["path",{d:"M18 13a6 6 0 0 1-6 5 6 6 0 0 1-6-5h12Z"}],["line",{x1:9,x2:9.01,y1:9,y2:9}],["line",{x1:15,x2:15.01,y1:9,y2:9}]],
       trash: [["path",{d:"M10 11v6"}],["path",{d:"M14 11v6"}],["path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"}],["path",{d:"M3 6h18"}],["path",{d:"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}]],
+      mic: [["rect",{x:9,y:2,width:6,height:13,rx:3}],["path",{d:"M19 10v2a7 7 0 0 1-14 0v-2"}],["line",{x1:12,x2:12,y1:19,y2:22}]],
+      send: [["path",{d:"m22 2-7 20-4-9-9-4 20-7Z"}],["path",{d:"M22 2 11 13"}]],
       arrowLeft: [["path",{d:"m12 19-7-7 7-7"}],["path",{d:"M19 12H5"}]],
       x:     [["path",{d:"M18 6 6 18"}],["path",{d:"m6 6 12 12"}]],
       plus:  [["path",{d:"M5 12h14"}],["path",{d:"M12 5v14"}]],
@@ -930,7 +1026,7 @@
     /* =====================================================
        EKRAN 1 — DODAWANIE / EDYCJA WPISU
        ===================================================== */
-    function EntryFormScreen({ onSave, onCancel, categories, initial, onOpenCategories }) {
+    function EntryFormScreen({ onSave, onCancel, categories, initial, onOpenCategories, startVoice }) {
       const isEdit = !!initial;
       const [title, setTitle] = useState(initial ? initial.title : "");
       const [content, setContent] = useState(initial ? initial.content : "");
@@ -939,6 +1035,11 @@
       // data i faza księżyca pochodzą z wpisu (edycja) lub z chwili tworzenia (nowy)
       const baseDate = useMemo(() => initial ? new Date(initial.createdAt) : new Date(), [initial]);
       const moon = isEdit ? moonByKey(initial.moonPhase) : moonForDate(baseDate);
+
+      const voice = useVoiceTranscription({
+        onText: (text) => setContent(prev => prev ? prev.trim() + " " + text : text),
+      });
+      useEffect(() => { if (startVoice) voice.start(); /* eslint-disable-next-line */ }, []);
 
       const canSave = title.trim() || content.trim();
 
@@ -979,13 +1080,31 @@
             </div>
           </div>
 
-          <input className="text title-big" placeholder="Tytuł"
-                 value={title} onChange={e => setTitle(e.target.value)} autoFocus={!isEdit}
-                 style={{border:"none", outline:"none", background:"transparent", width:"100%", padding:0}} />
-
           <textarea className="text body-text" placeholder="treść wpisu"
-                    value={content} onChange={e => setContent(e.target.value)}
+                    value={content} onChange={e => setContent(e.target.value)} autoFocus={!isEdit}
                     style={{border:"none", outline:"none", background:"transparent", width:"100%", padding:0, resize:"none", minHeight:140, fontFamily:"inherit"}} />
+          {voice.state === "error" && voice.error && (
+            <div className="voice-error">
+              <span>{voice.error}</span>
+              <button type="button" onClick={voice.clearError} aria-label="Zamknij"><LucideIcon name="x" size={16} /></button>
+            </div>
+          )}
+          {voice.state === "recording" && (
+            <div className="rec-panel">
+              <span className="rec-dot"></span>
+              <span className="rec-timer">{String(Math.floor(voice.duration / 60)).padStart(2, "0")}:{String(voice.duration % 60).padStart(2, "0")}</span>
+              <button type="button" className="rec-stop" onClick={voice.stop}>Stop</button>
+              <button type="button" className="rec-cancel" onClick={voice.cancel}>Anuluj</button>
+            </div>
+          )}
+          {voice.state === "processing" && (
+            <div className="process-overlay">
+              <div className="process-card">
+                <div className="process-spinner"></div>
+                <div className="process-text">Transkrybujemy nagranie…</div>
+              </div>
+            </div>
+          )}
 
           <div className="field">
             <div className="moods-line stack">
@@ -1026,8 +1145,19 @@
             </div>
           </div>
 
-          <div className="sticky-bottom">
-            <button className="btn btn-primary" disabled={!canSave} onClick={save}>{isEdit ? "Zapisz zmiany" : "Zapisz wpis"}</button>
+          <div className="action-row">
+            <button type="button" className="round-btn round-btn-ghost"
+                    onClick={voice.start}
+                    disabled={voice.state !== "idle"}
+                    title="Dyktuj treść" aria-label="Dyktuj treść">
+              <LucideIcon name="mic" size={22} />
+            </button>
+            <button type="button" className="round-btn round-btn-primary"
+                    disabled={!canSave} onClick={save}
+                    title={isEdit ? "Zapisz zmiany" : "Zapisz wpis"}
+                    aria-label={isEdit ? "Zapisz zmiany" : "Zapisz wpis"}>
+              <LucideIcon name="plus" size={26} />
+            </button>
           </div>
         </div>
       );
@@ -1174,8 +1304,8 @@
                       <MoodIcon moodKey={e.mood} size={26} />
                     </div>
                     <div className="entry-mid">
-                      <h3 className="entry-title">{e.title || "(bez tytułu)"}</h3>
-                      {e.content && <p className="entry-snippet">{e.content}</p>}
+                      <h3 className="entry-title">{e.title || e.content || "(pusty wpis)"}</h3>
+                      {e.title && e.content && <p className="entry-snippet">{e.content}</p>}
                     </div>
                     <div className="entry-right">
                       <span className="date">{fmtDate(e.createdAt)}</span>
@@ -1188,7 +1318,14 @@
           )}
 
           <div className="list-bottom-pad"></div>
-          <button className="fab" onClick={onAdd} aria-label="Dodaj wpis"><LucideIcon name="plus" size={28} /></button>
+          <div className="quick-add">
+            <button type="button" className="quick-add-input" onClick={() => onAdd()}>
+              Dodaj wpis…
+            </button>
+            <button type="button" className="quick-add-mic" onClick={() => onAdd({ voice: true })} aria-label="Dyktuj wpis" title="Dyktuj wpis">
+              <LucideIcon name="mic" size={22} />
+            </button>
+          </div>
         </div>
       );
     }
@@ -1223,7 +1360,7 @@
             </div>
           </div>
 
-          <h1 className="title-big">{entry.title || "(bez tytułu)"}</h1>
+          {entry.title && <h1 className="title-big">{entry.title}</h1>}
 
           {entry.content && <p className="body-text">{entry.content}</p>}
 
@@ -1376,6 +1513,93 @@
       );
     }
 
+    /* ---------------- Transkrypcja głosowa (Groq Whisper) ---------------- */
+    function useVoiceTranscription({ onText }) {
+      const [state, setState] = useState("idle"); // idle | recording | processing | error
+      const [duration, setDuration] = useState(0);
+      const [error, setError] = useState(null);
+      const refs = React.useRef({ mr: null, chunks: [], stream: null, timer: null, cancelled: false });
+
+      function cleanupRecording() {
+        const r = refs.current;
+        if (r.timer) { clearInterval(r.timer); r.timer = null; }
+        if (r.stream) { r.stream.getTracks().forEach(t => t.stop()); r.stream = null; }
+      }
+
+      async function start() {
+        setError(null);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mr = new MediaRecorder(stream);
+          const r = refs.current;
+          r.mr = mr; r.chunks = []; r.stream = stream; r.cancelled = false;
+          mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) r.chunks.push(e.data); };
+          mr.onstop = async () => {
+            const wasCancelled = r.cancelled;
+            cleanupRecording();
+            if (wasCancelled) { setState("idle"); setDuration(0); return; }
+            const blob = new Blob(r.chunks, { type: mr.mimeType || "audio/webm" });
+            setState("processing");
+            try {
+              const { data: { session } } = await sb.auth.getSession();
+              if (!session) throw new Error("Brak sesji. Zaloguj się ponownie.");
+              const form = new FormData();
+              form.append("file", blob, "audio.webm");
+              const res = await fetch(`${SUPABASE_URL}/functions/v1/transcribe`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+                body: form,
+              });
+              if (!res.ok) {
+                const errTxt = await res.text();
+                throw new Error(errTxt || `HTTP ${res.status}`);
+              }
+              const out = await res.json();
+              const text = (out && out.text || "").trim();
+              if (text) onText(text);
+              setState("idle"); setDuration(0);
+            } catch (e) {
+              console.error("Transkrypcja:", e);
+              setError(e.message || "Nie udało się przetworzyć nagrania");
+              setState("error");
+              setDuration(0);
+            }
+          };
+          mr.start();
+          setState("recording");
+          const startedAt = Date.now();
+          r.timer = setInterval(() => {
+            const sec = Math.floor((Date.now() - startedAt) / 1000);
+            setDuration(sec);
+            // soft-limit 5 minut → auto-stop
+            if (sec >= 300 && r.mr && r.mr.state === "recording") {
+              r.mr.stop();
+            }
+          }, 250);
+        } catch (e) {
+          if (e && e.name === "NotAllowedError") setError("Brak dostępu do mikrofonu. Sprawdź ustawienia przeglądarki.");
+          else if (e && e.name === "NotFoundError") setError("Nie wykryto mikrofonu w urządzeniu.");
+          else setError(e.message || "Nie udało się uruchomić mikrofonu.");
+          setState("error");
+        }
+      }
+
+      function stop() {
+        const r = refs.current;
+        if (r.mr && r.mr.state === "recording") r.mr.stop();
+      }
+      function cancel() {
+        const r = refs.current;
+        r.cancelled = true;
+        if (r.mr && r.mr.state === "recording") r.mr.stop();
+      }
+      function clearError() { setError(null); setState("idle"); }
+
+      useEffect(() => () => cleanupRecording(), []);
+
+      return { state, duration, error, start, stop, cancel, clearError };
+    }
+
     function useIsDesktop() {
       const [is, setIs] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
       useEffect(() => {
@@ -1489,7 +1713,7 @@
         <ListScreen entries={entries} categories={settings.categories}
           theme={settings.theme}
           onThemeChange={(theme) => setSettings(s => ({ ...s, theme }))}
-          onAdd={() => setRoute({ name: "add" })}
+          onAdd={(opts) => setRoute({ name: "add", startVoice: !!(opts && opts.voice) })}
           onOpen={(id) => setRoute(id ? { name: "view", id } : { name: "list", id: null })}
           onOpenCategories={() => setShowCategories(true)}
           onOpenAccount={() => setShowAccount(true)}
@@ -1497,6 +1721,7 @@
       );
       const formAdd = (
         <EntryFormScreen categories={settings.categories}
+          startVoice={!!route.startVoice}
           onSave={addEntry} onCancel={() => setRoute({ name: "list" })}
           onOpenCategories={() => setShowCategories(true)} />
       );
