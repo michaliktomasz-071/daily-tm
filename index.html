@@ -121,9 +121,18 @@
       .main-add-btn:active { transform: scale(.97); }
       /* Ukryj FAB w sidebar — przycisk Dodaj wpis jest w main */
       .sidebar .fab { display: none; }
-      .sidebar .quick-add {
-        position: sticky; bottom: 16px; left: auto; transform: none;
-        margin: 16px 20px 0; width: auto;
+      .sidebar .bottom-dock { display: none; }
+      .app.desktop .main-dock {
+        display: flex;
+        position: fixed; bottom: 16px;
+        left: 420px; right: 0;
+        justify-content: center;
+        pointer-events: none; z-index: 20;
+      }
+      .app.desktop .main-dock > .quick-add {
+        pointer-events: auto;
+        flex: none;
+        width: min(640px, calc(100% - 160px));
       }
     }
     @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
@@ -320,29 +329,96 @@
     .fab:active { transform: translateX(-50%) scale(.96); }
     /* odstęp, by ostatnie wpisy nie chowały się pod bottom barem */
     .list-bottom-pad { height: 96px; }
-    .quick-add {
+    .bottom-dock {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-      width: min(440px, calc(100% - 32px));
+      width: min(432px, calc(100% - 48px));
+      display: flex; gap: 10px; align-items: center;
+      z-index: 20;
+    }
+    .main-dock { display: none; }
+    .quick-add {
+      flex: 1;
       display: flex; gap: 10px; align-items: center;
       background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
       padding: 6px 6px 6px 8px;
       box-shadow: 0 8px 28px rgba(0,0,0,.08);
-      z-index: 20;
     }
+    .dock-add {
+      flex: none;
+      width: 44px; height: 44px; border-radius: 50%;
+      border: none; background: var(--fg); color: var(--bg);
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 0 8px 28px rgba(0,0,0,.15);
+      transition: transform .1s, opacity .15s;
+    }
+    .dock-add:hover { opacity: .9; }
+    .dock-add:active { transform: scale(.95); }
     .quick-add-input {
       flex: 1; border: none; background: transparent;
       text-align: left; color: var(--muted);
       font-family: inherit; font-size: 15px; cursor: text; padding: 12px 14px;
     }
-    .quick-add-input:hover { color: var(--fg); }
+    .quick-add-input:disabled { cursor: not-allowed; }
+    .quick-add-input:hover:not(:disabled) { color: var(--fg); }
     .quick-add-mic {
       flex: none; width: 44px; height: 44px; border-radius: 50%;
       border: none; background: var(--fg); color: var(--bg);
       display: inline-flex; align-items: center; justify-content: center;
       cursor: pointer; transition: transform .1s, opacity .15s;
     }
-    .quick-add-mic:hover { opacity: .9; }
-    .quick-add-mic:active { transform: scale(.95); }
+    .quick-add-mic:hover:not(:disabled) { opacity: .9; }
+    .quick-add-mic:active:not(:disabled) { transform: scale(.95); }
+    .quick-add-mic:disabled { opacity: .45; cursor: not-allowed; }
+    .quick-add-mic.rec { background: #e53935; animation: recpulse 1.2s infinite; }
+    @keyframes recpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,.5);} 50% { box-shadow: 0 0 0 6px rgba(229,57,53,0);} }
+
+    /* Asystent — nakładka rozmowy */
+    .chat-modal {
+      background: var(--bg); color: var(--fg); border-radius: 18px;
+      width: min(560px, calc(100% - 32px)); height: min(80vh, 720px);
+      display: flex; flex-direction: column;
+      padding: 20px 20px 14px; box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .chat-disclaimer { font-size: 12px; color: var(--muted); margin: 0 0 12px; line-height: 1.4; }
+    .chat-scroll {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px;
+    }
+    .chat-empty { color: var(--muted); font-size: 14px; line-height: 1.5; margin: auto 0; text-align: center; padding: 0 12px; }
+    .chat-msg {
+      max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 14.5px; line-height: 1.5;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .chat-msg.user { align-self: flex-end; background: var(--fg); color: var(--bg); border-bottom-right-radius: 5px; }
+    .chat-msg.assistant { align-self: flex-start; background: var(--chip); color: var(--fg); border-bottom-left-radius: 5px; }
+    .chat-err { align-self: center; color: #e53935; font-size: 13px; text-align: center; padding: 4px 8px; }
+    .chat-typing { display: inline-flex; gap: 4px; align-items: center; }
+    .chat-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chatdot 1s infinite ease-in-out; }
+    .chat-typing span:nth-child(2) { animation-delay: .15s; }
+    .chat-typing span:nth-child(3) { animation-delay: .3s; }
+    @keyframes chatdot { 0%,60%,100% { opacity:.3; transform: translateY(0);} 30% { opacity:1; transform: translateY(-3px);} }
+    .chat-input-row {
+      display: flex; gap: 8px; align-items: center; margin-top: 12px;
+      border: 1px solid var(--line); border-radius: 999px; padding: 5px 5px 5px 6px;
+    }
+    .chat-input {
+      flex: 1; border: none; background: transparent; color: var(--fg);
+      font-family: inherit; font-size: 15px; padding: 10px 12px; outline: none;
+    }
+    .chat-input::placeholder { color: var(--muted); }
+    .chat-send {
+      flex: none; width: 42px; height: 42px; border-radius: 50%;
+      border: none; background: var(--fg); color: var(--bg);
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: transform .1s, opacity .15s;
+    }
+    .chat-send:hover:not(:disabled) { opacity: .9; }
+    .chat-send:active:not(:disabled) { transform: scale(.95); }
+    .chat-send:disabled { opacity: .4; cursor: not-allowed; }
+    .chat-clear {
+      border: 1px solid var(--line); background: transparent; color: var(--muted);
+      font-family: inherit; font-size: 12px; border-radius: 999px; padding: 5px 12px; cursor: pointer;
+    }
+    .chat-clear:hover { color: var(--fg); }
 
     /* Sort menu */
     .sort-row { display:flex; gap:8px; margin: 4px 0 4px; }
@@ -887,6 +963,61 @@
       return `${DNI[d.getDay()]}, ${fmtDate(iso)} · ${fmtTime(iso)}`;
     }
 
+    /* ---------------- Asystent (rozmowa o wpisach) ---------------- */
+    const CHAT_KEY = "daily_tm_chat_v1";
+    function loadChat() {
+      try { return JSON.parse(localStorage.getItem(CHAT_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveChat(msgs) {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(msgs));
+    }
+    // Skala liczbowa nastroju (1 = bardzo źle … 5 = bardzo dobrze) — do statystyk.
+    const MOOD_SCORE = { very_bad: 1, bad: 2, neutral: 3, good: 4, very_good: 5 };
+    function moodLabel(key) {
+      const m = MOODS.find(x => x.key === key);
+      return m ? m.label : key;
+    }
+    // Buduje zwarty blok kontekstu dla agenta: policzone statystyki nastroju + lista wpisów.
+    // Liczymy po stronie klienta, żeby model nie zgadywał agregatów.
+    function buildJournalContext(entries) {
+      if (!entries || entries.length === 0) return "";
+      const sorted = [...entries].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const n = sorted.length;
+      const scored = sorted.filter(e => MOOD_SCORE[e.mood]);
+      const avg = scored.length ? scored.reduce((s, e) => s + MOOD_SCORE[e.mood], 0) / scored.length : null;
+      const counts = {};
+      for (const e of sorted) counts[e.mood] = (counts[e.mood] || 0) + 1;
+      const distrib = MOOD_ORDER.map(k => counts[k] ? `${moodLabel(k)}: ${counts[k]}` : null).filter(Boolean).join(", ");
+      const byMonth = {};
+      for (const e of scored) {
+        const d = new Date(e.createdAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        (byMonth[key] = byMonth[key] || []).push(MOOD_SCORE[e.mood]);
+      }
+      const monthly = Object.keys(byMonth).sort().map(k => {
+        const arr = byMonth[k];
+        return `${k}: śr. ${(arr.reduce((s, x) => s + x, 0) / arr.length).toFixed(2)}/5 (${arr.length} wpis.)`;
+      }).join("\n");
+
+      const statLines = [`Liczba wpisów: ${n}.`, `Zakres dat: ${fmtDate(sorted[0].createdAt)} – ${fmtDate(sorted[n - 1].createdAt)}.`];
+      if (avg != null) statLines.push(`Średni nastrój: ${avg.toFixed(2)}/5 (1=bardzo źle, 5=bardzo dobrze).`);
+      if (distrib) statLines.push(`Rozkład nastrojów: ${distrib}.`);
+      if (monthly) statLines.push(`Średni nastrój miesięcznie:\n${monthly}`);
+
+      const entriesText = sorted.map(e => {
+        const tags = (e.tags && e.tags.length) ? ` [tagi: ${e.tags.join(", ")}]` : "";
+        const title = (e.title || "").trim();
+        const body = (e.content || "").trim();
+        const trimmed = body.length > 1500 ? body.slice(0, 1500) + "…" : body;
+        return `• ${fmtLong(e.createdAt)} — nastrój: ${moodLabel(e.mood)}${tags}` +
+          (title ? `\n  Tytuł: ${title}` : "") +
+          (trimmed ? `\n  Treść: ${trimmed}` : "");
+      }).join("\n\n");
+
+      return "PODSUMOWANIE NASTROJU:\n" + statLines.join("\n") + "\n\nWPISY (od najstarszego):\n" + entriesText;
+    }
+
     /* =====================================================
        MODAL — KONTO (logowanie / rejestracja)
        ===================================================== */
@@ -1166,7 +1297,7 @@
     /* =====================================================
        EKRAN 2 — LISTA WPISÓW
        ===================================================== */
-    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, onOpenAccount, categories, theme, onThemeChange, selectedId }) {
+    function ListScreen({ entries, onAdd, onOpen, onOpenCategories, onOpenAccount, onAssistant, categories, theme, onThemeChange, selectedId }) {
       const [filterTag, setFilterTag] = useState(null);
 
       // Kafelki dni — 14 dni wstecz + dziś + 30 dni do przodu
@@ -1318,12 +1449,17 @@
           )}
 
           <div className="list-bottom-pad"></div>
-          <div className="quick-add">
-            <button type="button" className="quick-add-input" onClick={() => onAdd()}>
-              Dodaj wpis…
-            </button>
-            <button type="button" className="quick-add-mic" onClick={() => onAdd({ voice: true })} aria-label="Dyktuj wpis" title="Dyktuj wpis">
-              <LucideIcon name="mic" size={22} />
+          <div className="bottom-dock">
+            <div className="quick-add">
+              <button type="button" className="quick-add-input" onClick={() => onAssistant(false)}>
+                Zapytaj asystenta…
+              </button>
+              <button type="button" className="quick-add-mic" onClick={() => onAssistant(true)} aria-label="Dyktuj do asystenta" title="Asystent głosowy">
+                <LucideIcon name="mic" size={22} />
+              </button>
+            </div>
+            <button type="button" className="dock-add" onClick={() => onAdd()} aria-label="Dodaj wpis" title="Dodaj wpis">
+              <LucideIcon name="plus" size={22} />
             </button>
           </div>
         </div>
@@ -1611,6 +1747,109 @@
       return is;
     }
 
+    /* =====================================================
+       NAKŁADKA — ASYSTENT (rozmowa o wpisach)
+       ===================================================== */
+    function AssistantChat({ entries, messages, setMessages, startVoice, onClose }) {
+      const [input, setInput] = useState("");
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState(null);
+      const scrollRef = React.useRef(null);
+      const inputRef = React.useRef(null);
+
+      const voice = useVoiceTranscription({
+        onText: (t) => setInput(prev => (prev ? prev.trim() + " " : "") + t),
+      });
+
+      useEffect(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }, [messages, busy]);
+
+      useEffect(() => {
+        if (startVoice) voice.start();
+        else if (inputRef.current) inputRef.current.focus();
+      }, []);
+
+      async function send() {
+        const q = input.trim();
+        if (!q || busy) return;
+        const next = [...messages, { role: "user", content: q, ts: Date.now() }];
+        setMessages(next);
+        setInput("");
+        setBusy(true); setErr(null);
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          if (!session) throw new Error("Brak sesji. Zaloguj się ponownie.");
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: next.map(m => ({ role: m.role, content: m.content })),
+              journal: buildJournalContext(entries),
+            }),
+          });
+          if (!res.ok) { const t = await res.text(); throw new Error(t || `HTTP ${res.status}`); }
+          const out = await res.json();
+          const reply = (out && out.reply || "").trim();
+          setMessages(m => [...m, { role: "assistant", content: reply || "(brak odpowiedzi)", ts: Date.now() }]);
+        } catch (e) {
+          console.error("Asystent:", e);
+          setErr(e.message || "Nie udało się uzyskać odpowiedzi.");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      const recording = voice.state === "recording";
+      const processing = voice.state === "processing";
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="chat-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3 className="modal-title">Asystent</h3>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {messages.length > 0 && (
+                  <button className="chat-clear" onClick={() => { setMessages([]); setErr(null); }}>Wyczyść</button>
+                )}
+                <button className="iconbtn" onClick={onClose} aria-label="Zamknij"><LucideIcon name="x" size={20} /></button>
+              </div>
+            </div>
+            <p className="chat-disclaimer">Rozmowa o Twoich wpisach. To narzędzie do refleksji — nie zastępuje kontaktu ze specjalistą.</p>
+            <div className="chat-scroll" ref={scrollRef}>
+              {messages.length === 0 && !busy && (
+                <div className="chat-empty">
+                  Zapytaj o swoje wpisy — np. „jak zmieniał się mój nastrój w tym miesiącu?" albo „o czym najczęściej piszę?".
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <div key={i} className={"chat-msg " + m.role}>{m.content}</div>
+              ))}
+              {busy && <div className="chat-msg assistant chat-typing"><span></span><span></span><span></span></div>}
+              {(err || voice.error) && <div className="chat-err">{err || voice.error}</div>}
+            </div>
+            <form className="chat-input-row" onSubmit={e => { e.preventDefault(); send(); }}>
+              <input ref={inputRef} className="chat-input" value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder={recording ? "Słucham…" : (processing ? "Przetwarzam nagranie…" : "Zapytaj asystenta…")}
+                disabled={busy} />
+              <button type="button"
+                className={"quick-add-mic" + (recording ? " rec" : "")}
+                onClick={() => recording ? voice.stop() : voice.start()}
+                disabled={busy || processing}
+                aria-label={recording ? "Zatrzymaj nagrywanie" : "Dyktuj do asystenta"}
+                title={recording ? "Zatrzymaj" : "Dyktuj"}>
+                <LucideIcon name="mic" size={20} />
+              </button>
+              <button type="submit" className="chat-send" disabled={busy || !input.trim()} aria-label="Wyślij">
+                <LucideIcon name="send" size={18} />
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
     function App() {
       const [entries, setEntries] = useState([]);
       const [settings, setSettings] = useState(loadSettings);
@@ -1619,8 +1858,12 @@
       const [showAccount, setShowAccount] = useState(false);
       const [user, setUser] = useState(null);
       const [authReady, setAuthReady] = useState(false);
+      const [chatOpen, setChatOpen] = useState(false);
+      const [chatStartVoice, setChatStartVoice] = useState(false);
+      const [chatMessages, setChatMessages] = useState(loadChat);
       const userId = user && user.id;
       const isDesktop = useIsDesktop();
+      const openChat = (voice) => { setChatStartVoice(!!voice); setChatOpen(true); };
 
       // Anonimowe logowanie i pobranie wpisów z bazy
       async function ensureSessionAndLoad({ migrateLocal = false, autoAnon = false } = {}) {
@@ -1681,6 +1924,8 @@
         document.documentElement.setAttribute("data-theme", settings.theme);
       }, [settings]);
 
+      useEffect(() => { saveChat(chatMessages); }, [chatMessages]);
+
       async function addEntry(entry) {
         if (!userId) return;
         const row = entryToRow(entry, userId);
@@ -1717,6 +1962,7 @@
           onOpen={(id) => setRoute(id ? { name: "view", id } : { name: "list", id: null })}
           onOpenCategories={() => setShowCategories(true)}
           onOpenAccount={() => setShowAccount(true)}
+          onAssistant={openChat}
           selectedId={isDesktop ? route.id : null} />
       );
       const formAdd = (
@@ -1747,6 +1993,10 @@
             <AccountModal user={user} hasEntries={entries.length > 0}
               onAuthChange={() => ensureSessionAndLoad()}
               onClose={() => setShowAccount(false)} />
+          )}
+          {chatOpen && (
+            <AssistantChat entries={entries} messages={chatMessages} setMessages={setChatMessages}
+              startVoice={chatStartVoice} onClose={() => setChatOpen(false)} />
           )}
         </>
       );
@@ -1786,6 +2036,16 @@
           <div className="app desktop">
             <aside className="sidebar">{listScreen}</aside>
             <main className="main">{mainPane}</main>
+            <div className="main-dock">
+              <div className="quick-add">
+                <button type="button" className="quick-add-input" onClick={() => openChat(false)}>
+                  Zapytaj asystenta…
+                </button>
+                <button type="button" className="quick-add-mic" onClick={() => openChat(true)} aria-label="Dyktuj do asystenta" title="Asystent głosowy">
+                  <LucideIcon name="mic" size={22} />
+                </button>
+              </div>
+            </div>
             {modals}
           </div>
         );

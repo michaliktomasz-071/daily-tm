@@ -1,8 +1,8 @@
 # PRD — DAILY TM
 
 > Dokument wymagań produktowych (Product Requirements Document)
-> Wersja: 0.1 — Etap 1 (MVP)
-> Data: 2026-05-30
+> Wersja: 0.2 — Etap 1 (MVP) + Asystent AI
+> Data: 2026-06-10
 
 ---
 
@@ -38,6 +38,13 @@ w sekcji [Poza zakresem](#8-poza-zakresem-etapu-1).
 | Styl                | Minimalistyczny, czarno-biały, duża typografia (jak Stoic)    |
 | Język interfejsu    | Polski                                                        |
 | Offline             | Działa w pełni offline (dane lokalne)                         |
+
+> **Uwaga (po Etapie 1):** aplikacja zyskała logowanie i synchronizację wpisów
+> przez **Supabase**, a także funkcje AI — **transkrypcję głosową** i **Asystenta**
+> (sekcja [5.5](#55-asystent--rozmowa-o-wpisach)). Funkcje AI wymagają internetu i
+> działają przez **Supabase Edge Functions** wołające **Groq** (model
+> `llama-3.1-8b-instant` dla Asystenta, Whisper dla transkrypcji). Wpisy nadal mają
+> lokalny cache, więc przeglądanie historii działa offline; same zapytania do AI — nie.
 
 ---
 
@@ -184,6 +191,40 @@ Każda faza ma ikonę i nazwę po polsku.
 
 ---
 
+### 5.5 Asystent — rozmowa o wpisach
+
+**Cel:** prywatna rozmowa o własnych wpisach — odpowiadanie na pytania,
+dostrzeganie wzorców i analiza zmian nastroju w czasie. Asystent pełni rolę
+empatycznego towarzysza refleksji — **nie jest terapeutą ani narzędziem
+medycznym**.
+
+**Wejście:** dolny pasek **„Zapytaj asystenta…"** (mobile i desktop). Kliknięcie
+otwiera nakładkę rozmowy; ikona **mikrofonu** otwiera ją i od razu rozpoczyna
+dyktowanie pytania (ta sama transkrypcja głosowa Groq Whisper co w formularzu wpisu).
+
+**Elementy nakładki:**
+- Nagłówek „Asystent" + przycisk zamknięcia oraz **„Wyczyść"** (kasuje wątek).
+- Krótka nota: rozmowa o wpisach, narzędzie do refleksji — **nie zastępuje
+  kontaktu ze specjalistą**.
+- Historia rozmowy w formie dymków (pytanie użytkownika / odpowiedź asystenta).
+- Pole tekstowe + mikrofon + przycisk wysłania.
+
+**Zachowanie:**
+- Do modelu przekazywany jest zwarty kontekst budowany **po stronie klienta**:
+  policzone **statystyki nastroju** (średnia, rozkład, średnie miesięczne) oraz
+  lista wpisów. Dzięki temu analiza liczbowa jest dokładna, a nie zgadywana.
+- Odpowiedzi opierają się **wyłącznie** na wpisach użytkownika; przy braku danych
+  asystent mówi o tym wprost (nie zmyśla).
+- W razie sygnałów kryzysu asystent spokojnie kieruje do bliskich/specjalisty
+  i podaje numery wsparcia (112, całodobowe Centrum Wsparcia 800 70 2222).
+- Historia rozmowy jest zapamiętywana lokalnie (`localStorage`, klucz
+  `daily_tm_chat_v1`) i przetrwa odświeżenie strony.
+- Zapytanie idzie przez Supabase Edge Function `chat` → Groq, więc **wymaga
+  internetu**. Treść wpisów opuszcza urządzenie tylko na czas wygenerowania
+  odpowiedzi (zewnętrzny dostawca inferencji — Groq).
+
+---
+
 ## 6. Nawigacja
 
 ```
@@ -216,8 +257,11 @@ później:
 
 - Wyszukiwanie i filtrowanie po nastroju (filtr po tagach oraz sortowanie po
   fazie księżyca są już w Etapie 1).
-- Statystyki/wykresy nastroju w czasie.
-- Synchronizacja w chmurze, konta użytkowników.
+- ~~Statystyki/wykresy nastroju w czasie~~ — częściowo zrealizowane: Asystent
+  ([5.5](#55-asystent--rozmowa-o-wpisach)) liczy i omawia statystyki nastroju;
+  wykresy wizualne nadal poza zakresem.
+- ~~Synchronizacja w chmurze, konta użytkowników~~ — zrealizowane po Etapie 1
+  (Supabase: logowanie + synchronizacja wpisów).
 - Powiadomienia/przypomnienia o codziennym wpisie.
 - Eksport/import danych.
 - Ćwiczenia, medytacje, cytaty (jak w pełnym Stoic).
@@ -239,3 +283,12 @@ później:
 - [ ] Można dodawać i usuwać kategorie tagów; belka tagów filtruje listę.
 - [ ] Tagi wpisu wybiera się tylko spośród kategorii z ustawień.
 - [ ] Interfejs jest czarno-biały, minimalistyczny i responsywny.
+
+### Asystent (po Etapie 1)
+
+- [ ] Pasek „Zapytaj asystenta…" otwiera nakładkę rozmowy (klik oraz mikrofon).
+- [ ] Asystent odpowiada na pytania o wpisy i analizuje nastrój na podstawie
+      policzonych statystyk (np. podaje średnią i rozkład).
+- [ ] Odpowiedzi opierają się wyłącznie na wpisach użytkownika.
+- [ ] Historia rozmowy przetrwa odświeżenie strony; „Wyczyść" ją kasuje.
+- [ ] Nakładka wyświetla notę „nie zastępuje kontaktu ze specjalistą".

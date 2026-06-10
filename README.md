@@ -17,6 +17,19 @@ czarno-biała, duża typografia, dużo przestrzeni.
 - Ikony interfejsu i nastrojów pochodzą z biblioteki [Lucide](https://lucide.dev).
 - Dane zapisywane lokalnie w przeglądarce (`localStorage`), działa offline.
 
+## Po Etapie 1 — co doszło
+
+- **Logowanie i synchronizacja** wpisów przez **Supabase** (wpisy mają też lokalny cache).
+- **Transkrypcja głosowa** — dyktowanie treści wpisu (Groq Whisper).
+- **Asystent** — rozmowa o własnych wpisach przez dolny pasek „Zapytaj asystenta…":
+  odpowiada na pytania i analizuje zmiany nastroju w czasie (empatyczny towarzysz
+  refleksji, **nie zastępuje specjalisty**). Działa na modelu Groq
+  `llama-3.1-8b-instant`; historia rozmowy w `localStorage`.
+
+> Funkcje AI (transkrypcja, Asystent) wymagają internetu i działają przez
+> **Supabase Edge Functions** wołające **Groq** — klucz API nigdy nie trafia do
+> przeglądarki. Źródło funkcji `chat` jest w `supabase/functions/chat/`.
+
 ## Uruchomienie
 
 Aplikacja nie wymaga instalacji ani kroku budowania. Wystarczy otworzyć plik
@@ -27,10 +40,11 @@ Aplikacja nie wymaga instalacji ani kroku budowania. Wystarczy otworzyć plik
 
 ## Pliki
 
-- `index.html` — cała aplikacja (React + style, jeden plik).
+- `index.html` — cała aplikacja front-end (React + style, jeden plik).
+- `supabase/functions/chat/` — Edge Function Asystenta (proxy do Groq).
 - `PRD.md` — dokument wymagań produktowych.
 
-## Co dalej (poza Etapem 1)
+## Co dalej
 
-Edycja wpisu, wyszukiwanie/filtrowanie po tagach i nastroju, statystyki nastroju,
-synchronizacja w chmurze, przypomnienia. Szczegóły w [`PRD.md`](PRD.md).
+Wizualne wykresy nastroju, wyszukiwanie/filtrowanie po nastroju, przypomnienia
+o codziennym wpisie, eksport/import danych. Szczegóły w [`PRD.md`](PRD.md).
