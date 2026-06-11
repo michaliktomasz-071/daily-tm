@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dziennik. — Dokumentacja API</title>
+  <link rel="icon" href="../dlogo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f4f4f4; --fg: #363632; --muted: #8a8a8a; --line: #e4e4e4;
+      --card: #ffffff; --page: #f4f4f4; --accent: #363632;
+      --code-bg: #fbfbfa; --badge-bg: #efefee;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0e0e0e; --fg: #f4f4f4; --muted: #8f8f8f; --line: #272727;
+      --card: #161616; --page: #000000; --accent: #f4f4f4;
+      --code-bg: #121212; --badge-bg: #1c1c1c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--page); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--fg); font-size: 15px; line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    /* Długie URL-e/nazwy w inline-code mają się zawijać, nie rozpychać strony.
+       (Bloki kodu używają <pre> z własnym przewijaniem, więc ich to nie dotyczy.) */
+    code { overflow-wrap: anywhere; word-break: break-word; }
+
+    /* ---- Header ---- */
+    header.top {
+      position: sticky; top: 0; z-index: 40;
+      background: var(--bg); border-bottom: 1px solid var(--line);
+      padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; row-gap: 10px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand .word { font-family: "Noto Serif", Georgia, serif; font-weight: 800; font-size: 20px; letter-spacing: -.5px; }
+    .brand .tag { color: var(--muted); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .btn {
+      font: inherit; font-size: 14px; cursor: pointer;
+      border: 1px solid var(--line); background: var(--card); color: var(--fg);
+      border-radius: 8px; padding: 8px 14px; transition: background .15s, border-color .15s;
+      display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--muted); }
+    .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .btn.primary:hover { opacity: .9; }
+    .btn.sm { padding: 5px 10px; font-size: 13px; border-radius: 7px; }
+    .btn.ghost { background: transparent; }
+    .iconbtn { width: 38px; height: 38px; border-radius: 8px; padding: 0; justify-content: center; }
+
+    /* ---- Token bar (shared, above tabs) ---- */
+    .tokenbar {
+      border-bottom: 1px solid var(--line);
+      background: var(--code-bg);
+    }
+    .tokenbar .inner { max-width: 1060px; margin: 0 auto; padding: 16px 24px; }
+    .tokenbar .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .tokenbar h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .3px; }
+    .tokenbar p.hint { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    input.fld {
+      font: inherit; font-size: 14px; padding: 8px 11px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--card); color: var(--fg); min-width: 180px;
+    }
+    input.fld:focus { outline: none; border-color: var(--muted); }
+    .keybox {
+      margin-top: 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: var(--card); overflow: hidden;
+    }
+    .keybox .head { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+    .keybox .val { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+    .keybox .val code { font-size: 14px; word-break: break-all; flex: 1; }
+    .warn { color: #b4690e; }
+    :root[data-theme="dark"] .warn { color: #f0a04b; }
+    .keylist { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .keyrow {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--card);
+      font-size: 13px;
+    }
+    .keyrow .meta { color: var(--muted); }
+    .msg { font-size: 13px; margin-top: 8px; }
+    .msg.err { color: #c0392b; }
+    :root[data-theme="dark"] .msg.err { color: #ff7a6b; }
+
+    /* ---- Tabs ---- */
+    .tabs { max-width: 1060px; margin: 0 auto; padding: 0 24px; display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+    .tab {
+      font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      background: transparent; border: none; color: var(--muted);
+      padding: 14px 14px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .tab:hover { color: var(--fg); }
+    .tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+    .tab .soon { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; margin-left: 6px; }
+
+    /* ---- Layout ---- */
+    .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 24px 80px; display: grid; grid-template-columns: 1fr; gap: 32px; }
+    @media (min-width: 880px) { .wrap { grid-template-columns: 200px 1fr; } }
+    nav.side { font-size: 14px; }
+    @media (min-width: 880px) { nav.side { position: sticky; top: 96px; align-self: start; } }
+    nav.side a { display: block; color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 7px; border-left: 2px solid transparent; }
+    nav.side a:hover { color: var(--fg); background: var(--code-bg); }
+    nav.side .grouplabel { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 6px 10px; margin-top: 8px; }
+
+    main { min-width: 0; }
+    .lead { font-size: 16px; color: var(--muted); margin: 0 0 24px; }
+    h1.page { font-family: "Noto Serif", Georgia, serif; font-size: 32px; font-weight: 800; letter-spacing: -.6px; margin: 0 0 6px; }
+    section.ep { padding: 26px 0; border-top: 1px solid var(--line); }
+    section.ep:first-of-type { border-top: none; padding-top: 4px; }
+    .ep h3 { font-size: 20px; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .badge {
+      font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; letter-spacing: .5px;
+      border-radius: 6px; padding: 3px 8px; border: 1px solid var(--line); background: var(--badge-bg);
+    }
+    .badge.post { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .path { font-family: ui-monospace, monospace; font-size: 14px; color: var(--fg); }
+    .ep p { margin: 8px 0 14px; }
+    table.params { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 13.5px; }
+    table.params th, table.params td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    table.params th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    table.params code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+    .req { color: #c0392b; font-size: 11px; font-weight: 700; }
+    :root[data-theme="dark"] .req { color: #ff7a6b; }
+    .opt { color: var(--muted); font-size: 11px; }
+
+    .codeblock { position: relative; margin: 10px 0 18px; }
+    .codeblock .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+    pre {
+      margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+      padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.55;
+    }
+    .copy { position: absolute; top: 26px; right: 10px; }
+    .endpoint-url { font-family: ui-monospace, monospace; }
+
+    .callout { border: 1px solid var(--line); background: var(--code-bg); border-radius: 10px; padding: 14px 16px; margin: 16px 0; font-size: 14px; }
+    .callout strong { font-weight: 700; }
+    .soon-box { text-align: center; color: var(--muted); padding: 60px 20px; border: 1px dashed var(--line); border-radius: 14px; }
+    .soon-box h3 { color: var(--fg); font-size: 22px; margin: 0 0 8px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="word">dziennik.</span>
+      <span class="tag">Dokumentacja</span>
+    </div>
+    <div class="top-actions">
+      <button class="btn iconbtn ghost" id="themeBtn" title="Przełącz motyw" aria-label="Przełącz motyw"></button>
+      <a class="btn ghost" href="../">Otwórz aplikację →</a>
+    </div>
+  </header>
+
+  <!-- Wspólny pasek z generatorem klucza API -->
+  <div class="tokenbar">
+    <div class="inner">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2>Twój klucz API</h2>
+          <p class="hint" id="authHint">Zaloguj się tym samym kontem co w aplikacji, aby wygenerować klucz.</p>
+        </div>
+
+        <!-- Wylogowany: logowanie -->
+        <div class="row" id="loginRow">
+          <input class="fld" id="email" type="email" placeholder="e-mail" autocomplete="username" />
+          <input class="fld" id="password" type="password" placeholder="hasło" autocomplete="current-password" />
+          <button class="btn primary" id="loginBtn">Zaloguj</button>
+        </div>
+
+        <!-- Zalogowany: generowanie -->
+        <div class="row hidden" id="genRow">
+          <input class="fld" id="keyLabel" type="text" placeholder="nazwa klucza (np. agent-claude)" />
+          <button class="btn primary" id="genBtn">Wygeneruj klucz</button>
+          <button class="btn ghost sm" id="logoutBtn">Wyloguj</button>
+        </div>
+      </div>
+
+      <div class="msg err hidden" id="authMsg"></div>
+
+      <!-- Nowo wygenerowany klucz (pokazany raz) -->
+      <div class="keybox hidden" id="keybox">
+        <div class="head">Skopiuj teraz — <span class="warn">nie pokażemy go ponownie.</span></div>
+        <div class="val"><code id="newKey"></code><button class="btn sm" data-copy="#newKey">Kopiuj</button></div>
+      </div>
+
+      <!-- Lista istniejących kluczy -->
+      <div class="keylist hidden" id="keylist"></div>
+    </div>
+  </div>
+
+  <!-- Zakładki -->
+  <div class="tabs">
+    <button class="tab active" data-tab="api">API</button>
+    <button class="tab" data-tab="mcp">MCP</button>
+  </div>
+
+  <!-- ===================== API ===================== -->
+  <div class="wrap" id="tab-api">
+    <nav class="side">
+      <div class="grouplabel">Wprowadzenie</div>
+      <a href="#start">Szybki start</a>
+      <a href="#auth">Uwierzytelnianie</a>
+      <div class="grouplabel">Endpointy</div>
+      <a href="#add">Dodaj wpis</a>
+      <a href="#ask">Zapytaj asystenta</a>
+      <a href="#get">Pobierz wpis</a>
+      <div class="grouplabel">Dla agentów</div>
+      <a href="#openapi">OpenAPI / llms.txt</a>
+    </nav>
+
+    <main>
+      <h1 class="page">API dziennika</h1>
+      <p class="lead">Trzy proste endpointy REST, które pozwalają deweloperowi lub agentowi AI
+      pisać i czytać wpisy oraz rozmawiać z asystentem — w imieniu konkretnego użytkownika.</p>
+
+      <section class="ep" id="start">
+        <h3>Szybki start</h3>
+        <p>Wszystkie żądania idą na bazowy adres i wymagają nagłówka z kluczem API:</p>
+        <p class="endpoint-url"><strong>Base URL:</strong> <code id="baseUrlText"></code></p>
+        <div class="codeblock">
+          <div class="label">curl</div>
+          <button class="btn sm copy" data-copy="#cb-quick">Kopiuj</button>
+          <pre id="cb-quick"></pre>
+        </div>
+      </section>
+
+      <section class="ep" id="auth">
+        <h3>Uwierzytelnianie</h3>
+        <p>Każdy endpoint działa <strong>per-użytkownik</strong>. Klucz API jednoznacznie wskazuje
+        Twoje konto — nie trzeba przekazywać żadnego ID użytkownika. Wygeneruj klucz w pasku na
+        górze tej strony (po zalogowaniu) i dołączaj go do każdego żądania:</p>
+        <div class="codeblock">
+          <button class="btn sm copy" data-copy="#cb-auth">Kopiuj</button>
+          <pre id="cb-auth">Authorization: Bearer dtm_twoj_klucz</pre>
+        </div>
+        <div class="callout">Klucz jest <strong>długożyciowy</strong> (nie wygasa, dopóki go nie usuniesz),
+        więc agent wkleja go raz. Przechowujemy wyłącznie jego skrót (hash) — pełny klucz widzisz
+        tylko w momencie wygenerowania. Brak / zły klucz → <code>401</code>.</div>
+      </section>
+
+      <!-- 1. Dodaj wpis -->
+      <section class="ep" id="add">
+        <h3><span class="badge post">POST</span> <span class="path">/entries</span></h3>
+        <p>Dodaje nowy wpis z dzisiejszą datą. Domyślnie wystarczy sam tekst. Faza księżyca jest
+        liczona automatycznie z daty.</p>
+        <table class="params">
+          <tr><th>Pole</th><th>Typ</th><th></th><th>Opis</th></tr>
+          <tr><td><code>text</code></td><td>string</td><td><span class="req">wymagane</span></td><td>Treść wpisu. Pierwsza linia staje się tytułem.</td></tr>
+          <tr><td><code>mood</code></td><td>integer 1–5</td><td><span class="opt">opcjonalne</span></td><td>Nastrój: 1 = bardzo źle … 5 = bardzo dobrze. Gdy pominięty, nastrój nie jest ustawiany.</td></tr>
+        </table>
+        <div class="codeblock">
+          <div class="label">curl</div>
+          <button class="btn sm copy" data-copy="#cb-add-curl">Kopiuj</button>
+          <pre id="cb-add-curl"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">JavaScript (fetch)</div>
+          <button class="btn sm copy" data-copy="#cb-add-js">Kopiuj</button>
+          <pre id="cb-add-js"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">Odpowiedź 201</div>
+          <button class="btn sm copy" data-copy="#cb-add-res">Kopiuj</button>
+          <pre id="cb-add-res">{
+  "id": "mq92ygyl0kpgw",
+  "title": "Dzień był spokojny.",
+  "content": "Dzień był spokojny.",
+  "mood": 4,
+  "mood_key": "good",
+  "tags": [],
+  "moon_phase": "waning_crescent",
+  "created_at": "2026-06-11T05:51:53.949+00:00"
+}</pre>
+        </div>
+      </section>
+
+      <!-- 2. Zapytaj asystenta -->
+      <section class="ep" id="ask">
+        <h3><span class="badge post">POST</span> <span class="path">/ask</span></h3>
+        <p>Zadaje pytanie asystentowi — empatycznemu towarzyszowi refleksji, który odpowiada
+        na podstawie Twoich wpisów. Domyślnie kontekstem jest wpis z dzisiejszego dnia; możesz
+        wskazać inną datę.</p>
+        <table class="params">
+          <tr><th>Pole</th><th>Typ</th><th></th><th>Opis</th></tr>
+          <tr><td><code>question</code></td><td>string</td><td><span class="req">wymagane</span></td><td>Pytanie do asystenta.</td></tr>
+          <tr><td><code>date</code></td><td>string (YYYY-MM-DD)</td><td><span class="opt">opcjonalne</span></td><td>Dzień, którego wpis ma być kontekstem. Domyślnie dziś.</td></tr>
+        </table>
+        <div class="codeblock">
+          <div class="label">curl</div>
+          <button class="btn sm copy" data-copy="#cb-ask-curl">Kopiuj</button>
+          <pre id="cb-ask-curl"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">Odpowiedź 200</div>
+          <button class="btn sm copy" data-copy="#cb-ask-res">Kopiuj</button>
+          <pre id="cb-ask-res">{
+  "reply": "Dziś Twój nastrój wynosił 4/5…",
+  "model": "llama-3.1-8b-instant",
+  "date": "2026-06-11",
+  "entries_used": 1
+}</pre>
+        </div>
+        <div class="callout">Asystent nie jest licencjonowanym terapeutą i nie stawia diagnoz —
+        to wsparcie refleksji, nie pomoc medyczna.</div>
+      </section>
+
+      <!-- 3. Pobierz wpis -->
+      <section class="ep" id="get">
+        <h3><span class="badge">GET</span> <span class="path">/entries?date=YYYY-MM-DD</span></h3>
+        <p>Zwraca wpis(y) z wybranego dnia. Bez parametru <code>date</code> zwraca dzisiejszy.
+        Gdy brak wpisu — <code>404</code>.</p>
+        <table class="params">
+          <tr><th>Parametr</th><th>Typ</th><th></th><th>Opis</th></tr>
+          <tr><td><code>date</code></td><td>query, YYYY-MM-DD</td><td><span class="opt">opcjonalne</span></td><td>Dzień do pobrania (UTC). Domyślnie dziś.</td></tr>
+        </table>
+        <div class="codeblock">
+          <div class="label">curl</div>
+          <button class="btn sm copy" data-copy="#cb-get-curl">Kopiuj</button>
+          <pre id="cb-get-curl"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">Odpowiedź 200</div>
+          <button class="btn sm copy" data-copy="#cb-get-res">Kopiuj</button>
+          <pre id="cb-get-res">{
+  "date": "2026-06-11",
+  "count": 1,
+  "entries": [
+    {
+      "id": "mq92ygyl0kpgw",
+      "title": "Dzień był spokojny.",
+      "content": "Dzień był spokojny.",
+      "mood": 4,
+      "mood_key": "good",
+      "tags": [],
+      "moon_phase": "waning_crescent",
+      "created_at": "2026-06-11T05:51:53.949+00:00"
+    }
+  ]
+}</pre>
+        </div>
+      </section>
+
+      <!-- Dla agentów -->
+      <section class="ep" id="openapi">
+        <h3>Dla agentów — kontrakt maszynowy</h3>
+        <p>Zwięzłe podsumowanie w stylu <code>llms.txt</code> oraz pełny opis OpenAPI 3.1,
+        który agent może sparsować bez czytania tej strony.</p>
+        <div class="codeblock">
+          <div class="label">llms.txt</div>
+          <button class="btn sm copy" data-copy="#cb-llms">Kopiuj</button>
+          <pre id="cb-llms"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">openapi.json</div>
+          <button class="btn sm copy" data-copy="#cb-openapi">Kopiuj</button>
+          <pre id="cb-openapi"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===================== MCP ===================== -->
+  <div class="wrap hidden" id="tab-mcp">
+    <nav class="side">
+      <div class="grouplabel">Wprowadzenie</div>
+      <a href="#mcp-what">Czym jest MCP</a>
+      <a href="#mcp-url">Adres serwera</a>
+      <div class="grouplabel">Połączenie</div>
+      <a href="#mcp-connect">Klient MCP</a>
+      <div class="grouplabel">Referencja</div>
+      <a href="#mcp-tools">Narzędzia</a>
+      <a href="#mcp-deploy">Wdrożenie</a>
+    </nav>
+    <main>
+      <h1 class="page">Serwer MCP</h1>
+      <p class="lead">Cienka nakładka MCP nad tym samym API — żeby agenci AI (np. Claude)
+      korzystali z dziennika przez natywne narzędzia, bez ręcznego sklejania żądań HTTP.</p>
+
+      <section class="ep" id="mcp-what">
+        <h3>Czym jest MCP</h3>
+        <p><strong>Model Context Protocol</strong> to standard, dzięki któremu agent AI
+        odkrywa i wywołuje narzędzia serwera. Nasz serwer wystawia trzy narzędzia —
+        <code>add_entry</code>, <code>ask_assistant</code>, <code>get_entry</code> — które
+        forwardują do tego samego REST API i używają tego samego klucza <code>dtm_…</code>
+        (wygeneruj go w pasku na górze). Transport: MCP Streamable HTTP.</p>
+      </section>
+
+      <section class="ep" id="mcp-url">
+        <h3>Adres serwera</h3>
+        <p>Po wdrożeniu serwera na Vercel (patrz „Wdrożenie") wklej tutaj jego adres —
+        podstawimy go w przykładach poniżej.</p>
+        <input class="fld" id="mcpUrl" type="url"
+               placeholder="https://twoj-projekt.vercel.app/mcp"
+               style="min-width:320px; width:100%; max-width:520px;" />
+        <p class="hint" style="color:var(--muted); font-size:13px; margin-top:8px;">
+          Adres zapisuje się lokalnie w przeglądarce.</p>
+      </section>
+
+      <section class="ep" id="mcp-connect">
+        <h3>Podłączenie klienta</h3>
+        <p><strong>Claude Code</strong> — jedna komenda (uwierzytelnianie nagłówkiem):</p>
+        <div class="codeblock">
+          <button class="btn sm copy" data-copy="#cb-mcp-cli">Kopiuj</button>
+          <pre id="cb-mcp-cli"></pre>
+        </div>
+        <p><strong>Claude Desktop / klienci generyczni</strong> — konfiguracja JSON:</p>
+        <div class="codeblock">
+          <button class="btn sm copy" data-copy="#cb-mcp-json">Kopiuj</button>
+          <pre id="cb-mcp-json"></pre>
+        </div>
+        <div class="callout">Klucz <code>dtm_…</code> przekazujesz w nagłówku
+        <code>Authorization</code>; serwer MCP tylko forwarduje go do API. Ten sam klucz co dla REST.</div>
+      </section>
+
+      <section class="ep" id="mcp-tools">
+        <h3>Narzędzia</h3>
+        <table class="params">
+          <tr><th>Narzędzie</th><th>Parametry</th><th>Opis</th></tr>
+          <tr><td><code>add_entry</code></td><td><code>text</code> (wymagane), <code>mood</code> 1–5 (opc.)</td><td>Dodaje wpis na dziś.</td></tr>
+          <tr><td><code>ask_assistant</code></td><td><code>question</code> (wymagane), <code>date</code> YYYY-MM-DD (opc.)</td><td>Pyta asystenta o wpis z danego dnia.</td></tr>
+          <tr><td><code>get_entry</code></td><td><code>date</code> YYYY-MM-DD (opc.)</td><td>Pobiera wpis(y) dnia (domyślnie dziś).</td></tr>
+        </table>
+      </section>
+
+      <section class="ep" id="mcp-deploy">
+        <h3>Wdrożenie</h3>
+        <p>Kod serwera jest w repo, w katalogu <code>mcp-server/</code>. Wdrożenie na Vercel:</p>
+        <ol style="padding-left:20px; line-height:1.9;">
+          <li>Zaimportuj repo w Vercel, ustaw <strong>Root Directory = <code>mcp-server/</code></strong>.</li>
+          <li>(Opcjonalnie) zmienna <code>SUPABASE_API_BASE</code> — domyślnie wskazuje na nasze API.</li>
+          <li>Deploy → adres <code>https://&lt;projekt&gt;.vercel.app/mcp</code> wklej wyżej.</li>
+        </ol>
+        <p>Pełny runbook i testy (MCP Inspector, curl, <code>claude mcp add</code>):
+        plik <code>mcp-server/README.md</code>.</p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://chcxkkcnxpwhbhhmqqjy.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MgyAteLB9AFuCb0t5mfyFA_aQZORA_9";
+    const API_BASE = SUPABASE_URL + "/functions/v1/api";
+    // Ten sam storageKey co aplikacja → jeśli jesteś zalogowany w aplikacji, tu też.
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "daily_tm_auth" }
+    });
+
+    /* ---------- Motyw (spójny z aplikacją) ---------- */
+    // Te same ikony Lucide co w aplikacji: w trybie jasnym księżyc, w ciemnym słońce.
+    const ICON_MOON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M12 3a6.364 6.364 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+    const ICON_SUN = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+    function setThemeIcon(theme) {
+      document.getElementById("themeBtn").innerHTML = theme === "light" ? ICON_MOON : ICON_SUN;
+    }
+    function initTheme() {
+      let t = localStorage.getItem("dock_theme");
+      if (!t) {
+        try { t = (JSON.parse(localStorage.getItem("daily_tm_settings_v1")) || {}).theme; } catch (e) {}
+      }
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+      setThemeIcon(t);
+    }
+    initTheme();
+    document.getElementById("themeBtn").onclick = () => {
+      const cur = document.documentElement.getAttribute("data-theme");
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("dock_theme", next);
+      setThemeIcon(next);
+    };
+
+    /* ---------- Zakładki ---------- */
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const name = tab.dataset.tab;
+        document.getElementById("tab-api").classList.toggle("hidden", name !== "api");
+        document.getElementById("tab-mcp").classList.toggle("hidden", name !== "mcp");
+      };
+    });
+
+    /* ---------- Kopiowanie ---------- */
+    document.querySelectorAll("[data-copy]").forEach(btn => {
+      btn.onclick = async () => {
+        const el = document.querySelector(btn.dataset.copy);
+        try {
+          await navigator.clipboard.writeText(el.textContent);
+          const old = btn.textContent; btn.textContent = "Skopiowano ✓";
+          setTimeout(() => btn.textContent = old, 1200);
+        } catch (e) {}
+      };
+    });
+
+    /* ---------- Przykłady kodu (z realnym base URL) ---------- */
+    document.getElementById("baseUrlText").textContent = API_BASE;
+    const KEY_PLACEHOLDER = "dtm_twoj_klucz";
+    function fill(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+    fill("cb-quick",
+`curl -X POST "${API_BASE}/entries" \\
+  -H "Authorization: Bearer ${KEY_PLACEHOLDER}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"text":"Dzień dobry, dziś było spokojnie.","mood":4}'`);
+    fill("cb-add-curl",
+`curl -X POST "${API_BASE}/entries" \\
+  -H "Authorization: Bearer ${KEY_PLACEHOLDER}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"text":"Dzień był spokojny.","mood":4}'`);
+    fill("cb-add-js",
+`await fetch("${API_BASE}/entries", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer ${KEY_PLACEHOLDER}",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ text: "Dzień był spokojny.", mood: 4 })
+});`);
+    fill("cb-ask-curl",
+`curl -X POST "${API_BASE}/ask" \\
+  -H "Authorization: Bearer ${KEY_PLACEHOLDER}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"question":"Jak podsumujesz mój dzisiejszy nastrój?","date":"2026-06-11"}'`);
+    fill("cb-get-curl",
+`curl "${API_BASE}/entries?date=2026-06-11" \\
+  -H "Authorization: Bearer ${KEY_PLACEHOLDER}"`);
+    fill("cb-llms",
+`# dziennik. API
+Bazowy URL: ${API_BASE}
+Uwierzytelnianie: nagłówek "Authorization: Bearer dtm_…" (długożyciowy klucz, per-użytkownik).
+
+POST /entries   — dodaj wpis na dziś. Body: {text:string (wymagane), mood?:1..5}. Zwraca utworzony wpis.
+POST /ask       — zapytaj asystenta. Body: {question:string (wymagane), date?:YYYY-MM-DD}. Zwraca {reply,...}.
+GET  /entries   — pobierz wpis dnia. Query: date?=YYYY-MM-DD (domyślnie dziś). 404 gdy brak.`);
+    const openapi = {
+      openapi: "3.1.0",
+      info: { title: "dziennik. API", version: "1.0.0", description: "Per-użytkownik API dziennika DAILY TM." },
+      servers: [{ url: API_BASE }],
+      components: {
+        securitySchemes: { apiKey: { type: "http", scheme: "bearer", bearerFormat: "dtm_…" } },
+        schemas: {
+          Entry: {
+            type: "object",
+            properties: {
+              id: { type: "string" }, title: { type: "string" }, content: { type: "string" },
+              mood: { type: ["integer", "null"], minimum: 1, maximum: 5 },
+              mood_key: { type: ["string", "null"] },
+              tags: { type: "array", items: { type: "string" } },
+              moon_phase: { type: "string" }, created_at: { type: "string", format: "date-time" }
+            }
+          }
+        }
+      },
+      security: [{ apiKey: [] }],
+      paths: {
+        "/entries": {
+          post: {
+            summary: "Dodaj wpis na dziś",
+            requestBody: { required: true, content: { "application/json": { schema: {
+              type: "object", required: ["text"],
+              properties: { text: { type: "string" }, mood: { type: "integer", minimum: 1, maximum: 5 } }
+            } } } },
+            responses: { "201": { description: "Utworzono", content: { "application/json": { schema: { $ref: "#/components/schemas/Entry" } } } }, "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" } }
+          },
+          get: {
+            summary: "Pobierz wpis dnia",
+            parameters: [{ name: "date", in: "query", required: false, schema: { type: "string", format: "date" } }],
+            responses: { "200": { description: "OK" }, "404": { description: "Brak wpisu" }, "401": { description: "Brak/zły klucz" } }
+          }
+        },
+        "/ask": {
+          post: {
+            summary: "Zapytaj asystenta",
+            requestBody: { required: true, content: { "application/json": { schema: {
+              type: "object", required: ["question"],
+              properties: { question: { type: "string" }, date: { type: "string", format: "date" } }
+            } } } },
+            responses: { "200": { description: "Odpowiedź asystenta" }, "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" } }
+          }
+        }
+      }
+    };
+    fill("cb-openapi", JSON.stringify(openapi, null, 2));
+
+    /* ---------- MCP: adres serwera → snippety ---------- */
+    const mcpUrlInput = document.getElementById("mcpUrl");
+    const MCP_URL_PLACEHOLDER = "https://twoj-projekt.vercel.app/mcp";
+    mcpUrlInput.value = localStorage.getItem("dock_mcp_url") || "";
+    function fillMcp() {
+      const url = mcpUrlInput.value.trim() || MCP_URL_PLACEHOLDER;
+      fill("cb-mcp-cli",
+`claude mcp add --transport http dziennik "${url}" \\
+  --header "Authorization: Bearer ${KEY_PLACEHOLDER}"`);
+      fill("cb-mcp-json", JSON.stringify({
+        mcpServers: { dziennik: { type: "http", url, headers: { Authorization: "Bearer " + KEY_PLACEHOLDER } } }
+      }, null, 2));
+    }
+    mcpUrlInput.addEventListener("input", () => {
+      localStorage.setItem("dock_mcp_url", mcpUrlInput.value.trim());
+      fillMcp();
+    });
+    fillMcp();
+
+    /* ---------- Generator klucza API ---------- */
+    const $ = id => document.getElementById(id);
+    function authMsg(text, isErr = true) {
+      const el = $("authMsg");
+      el.textContent = text || "";
+      el.classList.toggle("hidden", !text);
+      el.classList.toggle("err", isErr);
+    }
+    function genToken() {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+      const b64 = btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      return "dtm_" + b64;
+    }
+    async function sha256hex(s) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function refreshUI() {
+      const { data: { user } } = await sb.auth.getUser();
+      const logged = !!user && !user.is_anonymous;
+      $("loginRow").classList.toggle("hidden", logged);
+      $("genRow").classList.toggle("hidden", !logged);
+      $("authHint").textContent = logged
+        ? `Zalogowano jako ${user.email}. Wygeneruj klucz dla agenta lub skryptu.`
+        : "Zaloguj się tym samym kontem co w aplikacji, aby wygenerować klucz.";
+      if (logged) loadKeys(); else { $("keylist").classList.add("hidden"); $("keybox").classList.add("hidden"); }
+    }
+
+    async function loadKeys() {
+      const { data, error } = await sb.from("api_keys")
+        .select("id,label,created_at,last_used_at,revoked")
+        .order("created_at", { ascending: false });
+      const list = $("keylist");
+      if (error) { list.classList.add("hidden"); return; }
+      if (!data || data.length === 0) { list.innerHTML = ""; list.classList.add("hidden"); return; }
+      list.classList.remove("hidden");
+      list.innerHTML = "";
+      data.forEach(k => {
+        const row = document.createElement("div");
+        row.className = "keyrow";
+        const used = k.last_used_at ? new Date(k.last_used_at).toLocaleDateString("pl-PL") : "nigdy";
+        const made = new Date(k.created_at).toLocaleDateString("pl-PL");
+        row.innerHTML = `<div><strong>${(k.label || "(bez nazwy)").replace(/[<>&]/g,"")}</strong>
+          <span class="meta"> · utworzono ${made} · użyto ${used}${k.revoked ? " · odwołany" : ""}</span></div>`;
+        const del = document.createElement("button");
+        del.className = "btn ghost sm"; del.textContent = "Usuń";
+        del.onclick = async () => {
+          if (!confirm("Usunąć klucz? Aplikacje, które go używają, stracą dostęp.")) return;
+          await sb.from("api_keys").delete().eq("id", k.id);
+          loadKeys();
+        };
+        row.appendChild(del);
+        list.appendChild(row);
+      });
+    }
+
+    $("loginBtn").onclick = async () => {
+      authMsg("");
+      const email = $("email").value.trim();
+      const password = $("password").value;
+      if (!email || !password) { authMsg("Podaj e-mail i hasło."); return; }
+      $("loginBtn").disabled = true;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      $("loginBtn").disabled = false;
+      if (error) { authMsg(error.message); return; }
+      $("password").value = "";
+      refreshUI();
+    };
+    $("logoutBtn").onclick = async () => { await sb.auth.signOut(); $("keybox").classList.add("hidden"); refreshUI(); };
+
+    $("genBtn").onclick = async () => {
+      authMsg("");
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) { authMsg("Najpierw się zaloguj."); return; }
+      $("genBtn").disabled = true;
+      const token = genToken();
+      const hash = await sha256hex(token);
+      const label = ($("keyLabel").value.trim()) || "klucz API";
+      const { error } = await sb.from("api_keys").insert({ user_id: user.id, token_hash: hash, label });
+      $("genBtn").disabled = false;
+      if (error) { authMsg(error.message); return; }
+      $("newKey").textContent = token;
+      $("keybox").classList.remove("hidden");
+      $("keyLabel").value = "";
+      loadKeys();
+    };
+
+    sb.auth.onAuthStateChange(() => refreshUI());
+    refreshUI();
+  </script>
+</body>
+</html>
