@@ -225,6 +225,46 @@ dyktowanie pytania (ta sama transkrypcja głosowa Groq Whisper co w formularzu w
 
 ---
 
+### 5.6 Publiczne API + strona dokumentacji (`/dock`)
+
+**Cel:** udostępnić dziennik innym **deweloperom i agentom AI** przez proste,
+działające **per-użytkownik** API, wraz z czytelną dokumentacją (dobry developer/
+agent experience).
+
+**Uwierzytelnianie:** długożyciowy **klucz API** w formacie `dtm_…`, generowany
+na stronie dokumentacji po zalogowaniu (ten sam login co w aplikacji). Klucz
+jednoznacznie wskazuje użytkownika — nie przekazuje się żadnego ID. Przechowywany
+jest wyłącznie jako skrót (SHA-256) w tabeli `api_keys` (RLS: użytkownik widzi/usuwa
+tylko własne klucze). Dołączany jako `Authorization: Bearer dtm_…`. Brak/zły klucz → `401`.
+
+**Endpointy** (Supabase Edge Function `api`, `verify_jwt:false`, walidacja klucza
+po stronie funkcji, dostęp do danych przez service role ograniczony do `user_id`):
+
+| Metoda + ścieżka            | Opis                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
+| `POST /entries`             | Dodaj wpis na dziś. Body: `text` (wymagane), `mood` 1–5 (opcjonalne; pominięty → nie ustawiany). Faza księżyca liczona z daty. |
+| `POST /ask`                 | Zapytaj asystenta. Body: `question` (wymagane), `date` YYYY-MM-DD (opcjonalne, domyślnie dziś). Kontekstem jest wpis z danego dnia. |
+| `GET /entries?date=…`       | Pobierz wpis(y) dnia (domyślnie dziś). Brak → `404`.                  |
+
+**Strona `/dock`:** statyczna (`dock/index.html`), w stylu dokumentacji Vercela
+(czarno-biała, zgodna z motywem aplikacji). Zawiera **wspólny pasek z generatorem
+klucza API** oraz dwie zakładki: **API** (pełny opis 3 endpointów: parametry,
+przykłady curl/JS, odpowiedzi, sekcja maszynowa OpenAPI/`llms.txt`) i **MCP**
+(placeholder „wkrótce" — przyszła nakładka MCP nad tym samym API).
+
+**Serwer MCP (dla agentów AI):** te same trzy operacje są wystawione jako narzędzia
+**MCP** — `add_entry`, `ask_assistant`, `get_entry` — żeby agenci (np. Claude) mieli
+natywny, „wkleić-i-działa" dostęp, bez ręcznego sklejania HTTP. Serwer to **cienka
+nakładka** protokołu MCP (Streamable HTTP) nad powyższym API: każde narzędzie forwarduje
+do `api` z tym samym kluczem `dtm_…`. Hosting: **Vercel** (kod w `mcp-server/`).
+Zakładka **MCP** na `/dock` zawiera pole na adres serwera oraz gotowe konfiguracje
+(`claude mcp add`, JSON dla Claude Desktop).
+
+**Wejście z aplikacji:** ikona **dzienniczka** w nagłówku listy wpisów prowadzi
+do `/dock`.
+
+---
+
 ## 6. Nawigacja
 
 ```

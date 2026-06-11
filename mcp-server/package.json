@@ -1,0 +1,15 @@
+{
+  "name": "dziennik-mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Serwer MCP dla dziennika DAILY TM — cienka nakładka nad REST API (Supabase).",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.2.0",
+    "typescript": "^5.6.3"
+  }
+}

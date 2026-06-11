@@ -29,6 +29,14 @@ while ($listener.IsListening) {
     $filePath = Join-Path $root $relative
     $full = [System.IO.Path]::GetFullPath($filePath)
 
+    # Fallback dla ścieżek bez rozszerzenia / katalogów (np. /dock → dock/index.html).
+    if ($full.StartsWith($root) -and -not (Test-Path $full -PathType Leaf)) {
+      $idx = Join-Path $full "index.html"
+      $asHtml = $full + ".html"
+      if (Test-Path $idx -PathType Leaf) { $full = $idx }
+      elseif (Test-Path $asHtml -PathType Leaf) { $full = $asHtml }
+    }
+
     if (-not $full.StartsWith($root) -or -not (Test-Path $full -PathType Leaf)) {
       $res.StatusCode = 404
       $bytes = [System.Text.Encoding]::UTF8.GetBytes("Not found")

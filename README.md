@@ -30,6 +30,29 @@ czarno-biała, duża typografia, dużo przestrzeni.
 > **Supabase Edge Functions** wołające **Groq** — klucz API nigdy nie trafia do
 > przeglądarki. Źródło funkcji `chat` jest w `supabase/functions/chat/`.
 
+## Publiczne API + dokumentacja (`/dock`)
+
+Dziennik wystawia proste **API REST** (per-użytkownik), żeby inni deweloperzy lub
+agenci AI mogli z niego korzystać. Pełny opis jest na stronie **`/dock`** (ikona
+dzienniczka w nagłówku aplikacji), w stylu dokumentacji Vercela.
+
+- Uwierzytelnianie: długożyciowy **klucz API** `dtm_…` (generowany na `/dock` po
+  zalogowaniu), nagłówek `Authorization: Bearer dtm_…`.
+- `POST /entries` — dodaj wpis na dziś (`text` wymagane, `mood` 1–5 opcjonalne).
+- `POST /ask` — zapytaj asystenta (`question` wymagane, `date` opcjonalne).
+- `GET /entries?date=YYYY-MM-DD` — pobierz wpis dnia (domyślnie dziś).
+
+Backend: Edge Function `api` (`supabase/functions/api/`), klucze w tabeli `api_keys`
+(przechowywany tylko hash).
+
+### Serwer MCP (dla agentów AI)
+
+Te same trzy operacje są też dostępne jako **narzędzia MCP** (`add_entry`,
+`ask_assistant`, `get_entry`), żeby agenci (np. Claude) mieli natywny dostęp. Serwer to
+cienka nakładka MCP nad powyższym API (ten sam klucz `dtm_…`), wdrażana na **Vercel** —
+kod i runbook w katalogu [`mcp-server/`](mcp-server/). Instrukcja podłączenia i adres
+serwera są w zakładce **MCP** na `/dock`.
+
 ## Uruchomienie
 
 Aplikacja nie wymaga instalacji ani kroku budowania. Wystarczy otworzyć plik
@@ -41,7 +64,10 @@ Aplikacja nie wymaga instalacji ani kroku budowania. Wystarczy otworzyć plik
 ## Pliki
 
 - `index.html` — cała aplikacja front-end (React + style, jeden plik).
+- `dock/index.html` — strona dokumentacji API (`/dock`).
 - `supabase/functions/chat/` — Edge Function Asystenta (proxy do Groq).
+- `supabase/functions/api/` — Edge Function publicznego API (3 endpointy).
+- `mcp-server/` — serwer MCP (Vercel) — nakładka nad API dla agentów AI.
 - `PRD.md` — dokument wymagań produktowych.
 
 ## Co dalej
