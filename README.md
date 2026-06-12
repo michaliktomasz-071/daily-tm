@@ -25,6 +25,11 @@ czarno-biała, duża typografia, dużo przestrzeni.
   odpowiada na pytania i analizuje zmiany nastroju w czasie (empatyczny towarzysz
   refleksji, **nie zastępuje specjalisty**). Działa na modelu Groq
   `llama-3.1-8b-instant`; historia rozmowy w `localStorage`.
+- **Zdjęcia we wpisach** — opcjonalne zdjęcia (jedno lub kilka) dodawane w edytorze
+  (ikona obrazka obok mikrofonu) i pokazywane **nad treścią** w podglądzie. Wpis może
+  mieć samo zdjęcie, sam tekst albo oba. Pliki trzymane są w **prywatnym** buckecie
+  **Supabase Storage** (`entry-photos`, dostęp tylko właściciela), zmniejszane w
+  przeglądarce przed wysłaniem, a podgląd korzysta z krótkotrwałych podpisanych URL-i.
 
 > Funkcje AI (transkrypcja, Asystent) wymagają internetu i działają przez
 > **Supabase Edge Functions** wołające **Groq** — klucz API nigdy nie trafia do

@@ -34,6 +34,20 @@ Key consequences:
 - When changing an entry's or settings' shape, bump the storage key version and merge
   defaults on load (see `loadSettings`).
 
+### Photos (Supabase Storage)
+- Entries may carry optional photos. The entry shape has a `photos` field — an array of
+  **storage paths** (not URLs), mapped to/from the DB `entries.photos` (jsonb) in
+  `rowToEntry`/`entryToRow`.
+- Files live in the **private** bucket `entry-photos`. Path scheme is `"<user_id>/<rand>.jpg"`;
+  RLS on `storage.objects` restricts each user to their own `auth.uid()` folder (select/
+  insert/update/delete policies).
+- Helpers near the Supabase block: `downscaleToJpeg` (canvas resize to ~1600px / JPEG 0.85),
+  `uploadPhoto(file, userId)`, `signPhoto(path)` (short-lived signed URL for preview), and
+  `removePhotos(paths)`. Previews always use signed URLs since the bucket is private.
+- `EntryFormScreen` uploads on file-pick and tracks `addedPaths`; orphaned files are pruned
+  in `save()`/`cancel()`. `deleteEntry` removes an entry's storage objects. An entry may have
+  a photo only, text only, or both (`canSave` allows photo-only).
+
 ### Screens (components)
 - `EntryFormScreen` — shared by **add and edit**. The `initial` prop switches modes:
   with `initial` it edits in place and **preserves `createdAt` and `moonPhase`**; without

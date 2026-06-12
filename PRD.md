@@ -76,6 +76,7 @@ Pojedynczy wpis zawiera:
 | `tags`        | string[]         | użytkownik            | Lista tagów/kategorii                            |
 | `createdAt`   | datetime (ISO)   | automatyczne          | Data i godzina utworzenia                        |
 | `moonPhase`   | enum             | automatyczne (wyliczane) | Aktualna faza księżyca w dniu utworzenia     |
+| `photos`      | string[]         | użytkownik (opcjonalne) | Lista ścieżek zdjęć w Supabase Storage (patrz [5.7](#57-zdjęcia-we-wpisach-supabase-storage)) |
 
 ### 4.0 Ustawienia aplikacji (Settings)
 
@@ -119,12 +120,16 @@ Każda faza ma ikonę i nazwę po polsku.
   nastrojami; bez możliwości tworzenia nowych tagów tutaj).
 - Informacja o automatycznie dołączanych danych: aktualna data/godzina oraz
   faza księżyca (wyświetlone, ale nieedytowalne).
+- **Zdjęcia (opcjonalne)** — przycisk z ikoną obrazka (obok mikrofonu) dodaje jedno
+  lub kilka zdjęć; miniatury z możliwością usunięcia pokazują się **nad** polem treści
+  (szczegóły w [5.7](#57-zdjęcia-we-wpisach-supabase-storage)).
 - Przycisk **Zapisz**.
 - Możliwość anulowania / powrotu.
 
 **Zachowanie:**
 - Po zapisaniu wpis trafia do `localStorage` i użytkownik wraca do listy wpisów.
-- Walidacja: zapis możliwy, gdy istnieje przynajmniej tytuł **lub** treść.
+- Walidacja: zapis możliwy, gdy istnieje przynajmniej tytuł, treść **lub** zdjęcie
+  (wpis może być sam tekst, samo zdjęcie albo oba).
 
 ---
 
@@ -155,6 +160,7 @@ Każda faza ma ikonę i nazwę po polsku.
 **Cel:** pełny widok pojedynczego wpisu.
 
 **Elementy:**
+- **Zdjęcia** (jeśli są) — galeria **nad** tytułem i treścią.
 - Tytuł.
 - Pełna treść.
 - Nastrój (ikona + opis).
@@ -169,8 +175,9 @@ Każda faza ma ikonę i nazwę po polsku.
 - Usunięcie wpisu prosi o potwierdzenie, usuwa go z `localStorage`
   i wraca do listy.
 - Edycja otwiera ten sam formularz co dodawanie, wypełniony danymi wpisu;
-  można zmienić tytuł, treść, nastrój i tagi. Data utworzenia oraz faza
-  księżyca pozostają niezmienione. Po zapisaniu następuje powrót do podglądu.
+  można zmienić tytuł, treść, nastrój, tagi oraz **zdjęcia** (dodać/usunąć). Data
+  utworzenia oraz faza księżyca pozostają niezmienione. Po zapisaniu następuje powrót
+  do podglądu.
 
 ---
 
@@ -269,6 +276,31 @@ do `/dock`.
 
 ---
 
+### 5.7 Zdjęcia we wpisach (Supabase Storage)
+
+**Cel:** pozwolić dołączyć do wpisu jedno lub kilka zdjęć — wpis może być sam tekst,
+samo zdjęcie albo oba.
+
+**Wejście:** przycisk z ikoną obrazka w pasku akcji edytora wpisu (obok mikrofonu).
+Otwiera systemowy wybór plików (`image/*`, wielokrotny wybór).
+
+**Zachowanie:**
+- Po wybraniu pliki są **zmniejszane w przeglądarce** (max ~1600px po dłuższym boku,
+  JPEG ~0.85) i wysyłane do **prywatnego** bucketu **Supabase Storage** `entry-photos`.
+  Wpis przechowuje tylko **ścieżki** plików (pole `photos`), nie adresy URL.
+- Ścieżki mają format `"<user_id>/<losowy>.jpg"`. **RLS** na `storage.objects` daje każdemu
+  użytkownikowi (także anonimowemu) dostęp wyłącznie do plików w jego własnym „folderze"
+  `auth.uid()`.
+- Podgląd miniatur (edytor) i galerii (Ekran 3) korzysta z **krótkotrwałych podpisanych
+  URL-i** (signed URL), bo bucket jest prywatny.
+- Zdjęcia można usuwać (krzyżyk na miniaturze). Pliki osierocone (dodane, lecz nie zapisane,
+  albo usunięte z wpisu) są sprzątane z bucketu przy zapisie/anulowaniu. Usunięcie wpisu
+  kasuje też powiązane pliki ze Storage.
+- W podglądzie galeria jest pokazywana **nad** treścią; na liście wpis bez tytułu i treści,
+  a ze zdjęciem, ma etykietę „(zdjęcie)" i ikonę obrazka.
+
+---
+
 ## 6. Nawigacja
 
 ```
@@ -336,3 +368,12 @@ później:
 - [ ] Odpowiedzi opierają się wyłącznie na wpisach użytkownika.
 - [ ] Historia rozmowy przetrwa odświeżenie strony; „Wyczyść" ją kasuje.
 - [ ] Nakładka wyświetla notę „nie zastępuje kontaktu ze specjalistą".
+
+### Zdjęcia we wpisach (po Etapie 1)
+
+- [ ] W edytorze można dodać jedno lub kilka zdjęć (ikona obrazka obok mikrofonu).
+- [ ] Można zapisać wpis sam ze zdjęciem (bez tytułu i treści).
+- [ ] Zdjęcia są zmniejszane przed wysłaniem i trafiają do prywatnego bucketu
+      Supabase Storage (dostęp tylko właściciela).
+- [ ] W podglądzie zdjęcia są pokazywane nad treścią wpisu.
+- [ ] Zdjęcia można usuwać w edytorze; usunięcie wpisu kasuje też jego pliki ze Storage.
