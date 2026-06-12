@@ -71,19 +71,31 @@ function buildServer(authHeader: string): McpServer {
 
   server.tool(
     "ask_assistant",
-    "Zapytaj asystenta — empatycznego towarzysza refleksji — o wpis z danego dnia. " +
-      "Odpowiada na podstawie wpisów użytkownika. Nie jest terapeutą ani narzędziem medycznym.",
+    "Zapytaj asystenta — empatycznego towarzysza refleksji. Najpierw przeszukuje cały " +
+      "dziennik wyszukiwaniem hybrydowym (słowa + znaczenie) pod kątem pytania, dobiera " +
+      "najtrafniejsze wpisy (plus kilka najnowszych) i na ich podstawie odpowiada. " +
+      "Nie jest terapeutą ani narzędziem medycznym.",
     {
       question: z.string().min(1).describe("Pytanie do asystenta (wymagane)."),
-      date: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
+      match_count: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
         .optional()
-        .describe("Dzień, którego wpis ma być kontekstem (YYYY-MM-DD). Domyślnie dziś."),
+        .describe("Ile najtrafniejszych wpisów wziąć jako kontekst (domyślnie 12)."),
+      recent_days: z
+        .number()
+        .int()
+        .min(0)
+        .max(90)
+        .optional()
+        .describe("Okno najnowszych wpisów zawsze doklejanych do kontekstu (domyślnie 7; 0 = wyłącz)."),
     },
-    async ({ question, date }): Promise<ToolResult> => {
+    async ({ question, match_count, recent_days }): Promise<ToolResult> => {
       const body: Record<string, unknown> = { question };
-      if (date) body.date = date;
+      if (match_count !== undefined) body.match_count = match_count;
+      if (recent_days !== undefined) body.recent_days = recent_days;
       const { status, text: out } = await callApi("/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

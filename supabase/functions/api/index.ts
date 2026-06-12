@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Publiczne API DAILY TM — 3 endpointy działające per-użytkownik.
+// Publiczne API DAILY TM — 4 endpointy działające per-użytkownik.
 // Uwierzytelnianie: długożyciowy klucz API ("dtm_…") w nagłówku
 //   Authorization: Bearer dtm_…  (albo X-API-Key: dtm_…)
 // Funkcja jest wdrażana z verify_jwt:false, więc SAMA waliduje klucz.
@@ -115,6 +115,36 @@ function entryView(r: any) {
   };
 }
 
+// Błąd embeddowania zapytania — niesie status HTTP do zwrócenia klientowi.
+class EmbedError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+
+// Embedding zapytania przez OpenAI (ten sam model co wpisy: text-embedding-3-small).
+async function embedQuery(openaiKey: string, text: string): Promise<number[]> {
+  const er = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
+  });
+  if (!er.ok) throw new EmbedError(er.status, (await er.text()) || `OpenAI HTTP ${er.status}`);
+  const emb = (await er.json())?.data?.[0]?.embedding;
+  if (!Array.isArray(emb)) throw new EmbedError(500, "Nie udało się wygenerować embeddingu zapytania.");
+  return emb;
+}
+
+// Formatuje wpisy zwrócone przez hybrid_search w blok kontekstu dla modelu.
+function buildRetrievedJournal(rows: any[]): string {
+  if (!rows || rows.length === 0) return "(Brak pasujących wpisów w dzienniku.)";
+  return rows.map((e: any) => {
+    const score = SCORE_BY_MOOD[e.mood];
+    const moodTxt = score ? `nastrój ${score}/5` : "nastrój nieokreślony";
+    const fresh = e.source === "recent" || e.source === "both" ? " · (ostatnie dni)" : "";
+    const title = e.title ? `${e.title}\n` : "";
+    return `### ${e.created_at?.slice(0, 10) || "?"} — ${moodTxt}${fresh}\n${title}${e.content || ""}`;
+  }).join("\n\n");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -203,7 +233,8 @@ Deno.serve(async (req) => {
     return json({ date: day, count: entries.length, entries }, 200);
   }
 
-  // 2) POST /api/ask — zapytaj asystenta o wpis (domyślnie dzisiejszy)
+  // 2) POST /api/ask — zapytaj asystenta. Najpierw RAG: wyszukiwanie hybrydowe po całej
+  //    bazie (+ kontekst ostatnich dni), potem odpowiedź modelu na podstawie znalezionych wpisów.
   if (method === "POST" && path === "/ask") {
     let body: any;
     try { body = await req.json(); } catch { return json({ error: "Nieprawidłowy JSON" }, 400); }
@@ -213,34 +244,33 @@ Deno.serve(async (req) => {
 
     const groqKey = Deno.env.get("GROQ_API_KEY");
     if (!groqKey) return json({ error: "GROQ_API_KEY nie jest skonfigurowany" }, 500);
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) return json({ error: "OPENAI_API_KEY nie jest skonfigurowany" }, 500);
 
-    const { start, end, day } = dayRange(typeof body?.date === "string" ? body.date : undefined);
-    const { data, error } = await admin
-      .from("entries")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("created_at", start)
-      .lt("created_at", end)
-      .order("created_at", { ascending: false });
+    const matchCount = clampInt(body?.match_count, 1, 50, 12);
+    const recentDays = clampInt(body?.recent_days, 0, 90, 7);
+
+    // 1) Embedding pytania + wyszukiwanie hybrydowe (RRF) ograniczone do tego użytkownika.
+    let emb: number[];
+    try { emb = await embedQuery(openaiKey, question); }
+    catch (e) { if (e instanceof EmbedError) return json({ error: e.message }, e.status); throw e; }
+
+    const { data, error } = await admin.rpc("hybrid_search", {
+      query_text: question,
+      query_embedding: emb,
+      p_user_id: userId,
+      match_count: matchCount,
+      recent_days: recentDays,
+    });
     if (error) return json({ error: error.message }, 500);
 
     const entries = data || [];
-    let journal = "";
-    if (entries.length === 0) {
-      journal = `(Brak wpisu na dzień ${day}.)`;
-    } else {
-      journal = entries.map((e: any) => {
-        const score = SCORE_BY_MOOD[e.mood];
-        const moodTxt = score ? `nastrój ${score}/5` : "nastrój nieokreślony";
-        const title = e.title ? `${e.title}\n` : "";
-        return `### ${e.created_at?.slice(0, 10) || day} — ${moodTxt}\n${title}${e.content || ""}`;
-      }).join("\n\n");
-    }
+    let journal = buildRetrievedJournal(entries);
     if (journal.length > MAX_JOURNAL_CHARS) {
       journal = journal.slice(0, MAX_JOURNAL_CHARS) + "\n…(skrócono)";
     }
 
-    const system = `${SYSTEM_PROMPT}\n\n=== DANE DZIENNIKA UŻYTKOWNIKA (dzień ${day}) ===\n${journal}`;
+    const system = `${SYSTEM_PROMPT}\n\n=== NAJTRAFNIEJSZE WPISY (wyszukiwanie hybrydowe) ===\n${journal}`;
 
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -261,7 +291,7 @@ Deno.serve(async (req) => {
     }
     const out = await r.json();
     const reply = out?.choices?.[0]?.message?.content?.trim() || "";
-    return json({ reply, model: MODEL, date: day, entries_used: entries.length }, 200);
+    return json({ reply, model: MODEL, entries_used: entries.length }, 200);
   }
 
   // 4) POST /api/search — wyszukiwanie hybrydowe (FTS + wektor, scalane RRF)
@@ -280,19 +310,9 @@ Deno.serve(async (req) => {
     if (!openaiKey) return json({ error: "OPENAI_API_KEY nie jest skonfigurowany" }, 500);
 
     // 1) Embedding zapytania — ten sam model co wpisy (text-embedding-3-small).
-    const er = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: q }),
-    });
-    if (!er.ok) {
-      const errTxt = await er.text();
-      return json({ error: errTxt || `OpenAI HTTP ${er.status}` }, er.status);
-    }
-    const emb = (await er.json())?.data?.[0]?.embedding;
-    if (!Array.isArray(emb)) {
-      return json({ error: "Nie udało się wygenerować embeddingu zapytania." }, 500);
-    }
+    let emb: number[];
+    try { emb = await embedQuery(openaiKey, q); }
+    catch (e) { if (e instanceof EmbedError) return json({ error: e.message }, e.status); throw e; }
 
     // 2) RRF (FTS + wektor) + doklejenie ostatnich N dni — w funkcji RPC.
     const { data, error } = await admin.rpc("hybrid_search", {

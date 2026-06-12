@@ -39,7 +39,9 @@ dzienniczka w nagłówku aplikacji), w stylu dokumentacji Vercela.
 - Uwierzytelnianie: długożyciowy **klucz API** `dtm_…` (generowany na `/dock` po
   zalogowaniu), nagłówek `Authorization: Bearer dtm_…`.
 - `POST /entries` — dodaj wpis na dziś (`text` wymagane, `mood` 1–5 opcjonalne).
-- `POST /ask` — zapytaj asystenta (`question` wymagane, `date` opcjonalne).
+- `POST /ask` — zapytaj asystenta (RAG): najpierw **wyszukiwanie hybrydowe** po całej
+  bazie pod kątem pytania, potem odpowiedź na podstawie znalezionych wpisów (`question`
+  wymagane, `match_count`/`recent_days` opcjonalne).
 - `GET /entries?date=YYYY-MM-DD` — pobierz wpis dnia (domyślnie dziś).
 - `POST /search` — wyszukiwanie **hybrydowe** (pełnotekstowe + wektorowe, scalane RRF;
   `q` wymagane, `match_count`/`recent_days` opcjonalne). Do wyników zawsze dokleja wpisy

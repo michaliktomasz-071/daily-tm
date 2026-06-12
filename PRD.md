@@ -210,9 +210,12 @@ dyktowanie pytania (ta sama transkrypcja głosowa Groq Whisper co w formularzu w
 - Pole tekstowe + mikrofon + przycisk wysłania.
 
 **Zachowanie:**
-- Do modelu przekazywany jest zwarty kontekst budowany **po stronie klienta**:
-  policzone **statystyki nastroju** (średnia, rozkład, średnie miesięczne) oraz
-  lista wpisów. Dzięki temu analiza liczbowa jest dokładna, a nie zgadywana.
+- Kontekst dla modelu powstaje **dwuetapowo (RAG)**: **statystyki nastroju**
+  (średnia, rozkład, średnie miesięczne) liczy **klient** z całego dziennika — dzięki
+  temu analiza liczbowa jest dokładna, a nie zgadywana; natomiast **wpisy** do kontekstu
+  dobiera **serwer** (Edge Function `chat`) przez **wyszukiwanie hybrydowe** `hybrid_search`
+  na podstawie bieżącego pytania (najtrafniejsze + ostatnie 7 dni). Wcześniej wysyłano cały
+  dziennik — teraz tylko zwarte statystyki + dobrane wpisy.
 - Odpowiedzi opierają się **wyłącznie** na wpisach użytkownika; przy braku danych
   asystent mówi o tym wprost (nie zmyśla).
 - W razie sygnałów kryzysu asystent spokojnie kieruje do bliskich/specjalisty
@@ -243,7 +246,7 @@ po stronie funkcji, dostęp do danych przez service role ograniczony do `user_id
 | Metoda + ścieżka            | Opis                                                                 |
 | --------------------------- | -------------------------------------------------------------------- |
 | `POST /entries`             | Dodaj wpis na dziś. Body: `text` (wymagane), `mood` 1–5 (opcjonalne; pominięty → nie ustawiany). Faza księżyca liczona z daty. |
-| `POST /ask`                 | Zapytaj asystenta. Body: `question` (wymagane), `date` YYYY-MM-DD (opcjonalne, domyślnie dziś). Kontekstem jest wpis z danego dnia. |
+| `POST /ask`                 | Zapytaj asystenta (**RAG**). Body: `question` (wymagane), `match_count` 1–50 (opc., dom. 12), `recent_days` 0–90 (opc., dom. 7). Najpierw `hybrid_search` po całej bazie pod kątem pytania, kontekstem są najtrafniejsze wpisy + ostatnie dni. Wymaga `OPENAI_API_KEY`. |
 | `GET /entries?date=…`       | Pobierz wpis(y) dnia (domyślnie dziś). Brak → `404`.                  |
 | `POST /search`              | Wyszukiwanie **hybrydowe**: pełnotekstowe (`tsvector` `simple`+`unaccent`) + wektorowe (pgvector, embeddingi OpenAI `text-embedding-3-small`) scalane metodą RRF w funkcji `hybrid_search`. Body: `q` (wymagane), `match_count` 1–100 (dom. 30), `recent_days` 0–90 (dom. 7). **Zawsze dokleja wpisy z ostatnich `recent_days` dni** (kontekst czasowy). Każdy wynik: `score` + `source` (`search` / `recent` / `both`). Wymaga sekretu `OPENAI_API_KEY`. |
 

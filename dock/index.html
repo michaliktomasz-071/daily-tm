@@ -290,13 +290,15 @@
       <!-- 2. Zapytaj asystenta -->
       <section class="ep" id="ask">
         <h3><span class="badge post">POST</span> <span class="path">/ask</span></h3>
-        <p>Zadaje pytanie asystentowi — empatycznemu towarzyszowi refleksji, który odpowiada
-        na podstawie Twoich wpisów. Domyślnie kontekstem jest wpis z dzisiejszego dnia; możesz
-        wskazać inną datę.</p>
+        <p>Zadaje pytanie asystentowi — empatycznemu towarzyszowi refleksji. Najpierw przeszukuje
+        <strong>cały dziennik wyszukiwaniem hybrydowym</strong> (słowa + znaczenie) pod kątem
+        pytania, dobiera najtrafniejsze wpisy (plus kilka najnowszych) i dopiero na ich podstawie
+        odpowiada.</p>
         <table class="params">
           <tr><th>Pole</th><th>Typ</th><th></th><th>Opis</th></tr>
           <tr><td><code>question</code></td><td>string</td><td><span class="req">wymagane</span></td><td>Pytanie do asystenta.</td></tr>
-          <tr><td><code>date</code></td><td>string (YYYY-MM-DD)</td><td><span class="opt">opcjonalne</span></td><td>Dzień, którego wpis ma być kontekstem. Domyślnie dziś.</td></tr>
+          <tr><td><code>match_count</code></td><td>integer 1–50</td><td><span class="opt">opcjonalne</span></td><td>Ile najtrafniejszych wpisów wziąć jako kontekst. Domyślnie 12.</td></tr>
+          <tr><td><code>recent_days</code></td><td>integer 0–90</td><td><span class="opt">opcjonalne</span></td><td>Okno najnowszych wpisów zawsze doklejanych do kontekstu. Domyślnie 7. <code>0</code> = wyłącz.</td></tr>
         </table>
         <div class="codeblock">
           <div class="label">curl</div>
@@ -307,10 +309,9 @@
           <div class="label">Odpowiedź 200</div>
           <button class="btn sm copy" data-copy="#cb-ask-res">Kopiuj</button>
           <pre id="cb-ask-res">{
-  "reply": "Dziś Twój nastrój wynosił 4/5…",
+  "reply": "We wpisach widzę powracający wątek wypalenia…",
   "model": "llama-3.1-8b-instant",
-  "date": "2026-06-11",
-  "entries_used": 1
+  "entries_used": 12
 }</pre>
         </div>
         <div class="callout">Asystent nie jest licencjonowanym terapeutą i nie stawia diagnoz —
@@ -477,7 +478,7 @@
         <table class="params">
           <tr><th>Narzędzie</th><th>Parametry</th><th>Opis</th></tr>
           <tr><td><code>add_entry</code></td><td><code>text</code> (wymagane), <code>mood</code> 1–5 (opc.)</td><td>Dodaje wpis na dziś.</td></tr>
-          <tr><td><code>ask_assistant</code></td><td><code>question</code> (wymagane), <code>date</code> YYYY-MM-DD (opc.)</td><td>Pyta asystenta o wpis z danego dnia.</td></tr>
+          <tr><td><code>ask_assistant</code></td><td><code>question</code> (wymagane), <code>match_count</code> 1–50 (opc.), <code>recent_days</code> 0–90 (opc.)</td><td>Pyta asystenta; najpierw hybrid search po całej bazie, potem odpowiedź na bazie znalezionych wpisów.</td></tr>
           <tr><td><code>get_entry</code></td><td><code>date</code> YYYY-MM-DD (opc.)</td><td>Pobiera wpis(y) dnia (domyślnie dziś).</td></tr>
         </table>
       </section>
@@ -580,7 +581,7 @@
 `curl -X POST "${API_BASE}/ask" \\
   -H "Authorization: Bearer ${KEY_PLACEHOLDER}" \\
   -H "Content-Type: application/json" \\
-  -d '{"question":"Jak podsumujesz mój dzisiejszy nastrój?","date":"2026-06-11"}'`);
+  -d '{"question":"Co moje wpisy mówią o wypaleniu w pracy?"}'`);
     fill("cb-get-curl",
 `curl "${API_BASE}/entries?date=2026-06-11" \\
   -H "Authorization: Bearer ${KEY_PLACEHOLDER}"`);
@@ -595,7 +596,7 @@ Bazowy URL: ${API_BASE}
 Uwierzytelnianie: nagłówek "Authorization: Bearer dtm_…" (długożyciowy klucz, per-użytkownik).
 
 POST /entries   — dodaj wpis na dziś. Body: {text:string (wymagane), mood?:1..5}. Zwraca utworzony wpis.
-POST /ask       — zapytaj asystenta. Body: {question:string (wymagane), date?:YYYY-MM-DD}. Zwraca {reply,...}.
+POST /ask       — zapytaj asystenta (RAG). Najpierw hybrid search po całej bazie pod pytanie, potem odpowiedź na bazie znalezionych wpisów. Body: {question:string (wymagane), match_count?:1..50 (dom. 12), recent_days?:0..90 (dom. 7)}. Zwraca {reply, model, entries_used}.
 GET  /entries   — pobierz wpis dnia. Query: date?=YYYY-MM-DD (domyślnie dziś). 404 gdy brak.
 POST /search    — wyszukiwanie hybrydowe (słowa + semantyka, RRF) + zawsze ostatnie recent_days dni.
                   Body: {q:string (wymagane), match_count?:1..100 (dom. 30), recent_days?:0..90 (dom. 7)}.
@@ -638,12 +639,16 @@ POST /search    — wyszukiwanie hybrydowe (słowa + semantyka, RRF) + zawsze os
         },
         "/ask": {
           post: {
-            summary: "Zapytaj asystenta",
+            summary: "Zapytaj asystenta (RAG: hybrid search → odpowiedź)",
             requestBody: { required: true, content: { "application/json": { schema: {
               type: "object", required: ["question"],
-              properties: { question: { type: "string" }, date: { type: "string", format: "date" } }
+              properties: {
+                question: { type: "string" },
+                match_count: { type: "integer", minimum: 1, maximum: 50, default: 12 },
+                recent_days: { type: "integer", minimum: 0, maximum: 90, default: 7 }
+              }
             } } } },
-            responses: { "200": { description: "Odpowiedź asystenta" }, "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" } }
+            responses: { "200": { description: "Odpowiedź asystenta" }, "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" }, "500": { description: "Brak OPENAI_API_KEY/GROQ_API_KEY lub błąd modelu" } }
           }
         },
         "/search": {
