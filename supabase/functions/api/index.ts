@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
     }
 
     const { data, error } = await admin.from("entries").insert(row).select().single();
-    if (error) return json({ error: error.message }, 500);
+    if (error) { console.error("insert entries:", error); return json({ error: "Nie udało się zapisać wpisu." }, 500); }
     return json(entryView(data), 201);
   }
 
@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
       .gte("created_at", start)
       .lt("created_at", end)
       .order("created_at", { ascending: false });
-    if (error) return json({ error: error.message }, 500);
+    if (error) { console.error("select entries:", error); return json({ error: "Nie udało się pobrać wpisów." }, 500); }
     const entries = (data || []).map(entryView);
     if (entries.length === 0) {
       return json({ date: day, count: 0, entries: [], message: `Brak wpisu na ${day}.` }, 404);
@@ -253,7 +253,10 @@ Deno.serve(async (req) => {
     // 1) Embedding pytania + wyszukiwanie hybrydowe (RRF) ograniczone do tego użytkownika.
     let emb: number[];
     try { emb = await embedQuery(openaiKey, question); }
-    catch (e) { if (e instanceof EmbedError) return json({ error: e.message }, e.status); throw e; }
+    catch (e) {
+      if (e instanceof EmbedError) { console.error("embedQuery /ask:", e.status, e.message); return json({ error: "Nie udało się przetworzyć zapytania." }, e.status); }
+      throw e;
+    }
 
     const { data, error } = await admin.rpc("hybrid_search", {
       query_text: question,
@@ -262,7 +265,7 @@ Deno.serve(async (req) => {
       match_count: matchCount,
       recent_days: recentDays,
     });
-    if (error) return json({ error: error.message }, 500);
+    if (error) { console.error("hybrid_search /ask:", error); return json({ error: "Błąd wyszukiwania." }, 500); }
 
     const entries = data || [];
     let journal = buildRetrievedJournal(entries);
@@ -286,8 +289,8 @@ Deno.serve(async (req) => {
       }),
     });
     if (!r.ok) {
-      const errTxt = await r.text();
-      return json({ error: errTxt || `Groq HTTP ${r.status}` }, r.status);
+      console.error("Groq /ask:", r.status, await r.text());
+      return json({ error: "Asystent jest chwilowo niedostępny." }, r.status);
     }
     const out = await r.json();
     const reply = out?.choices?.[0]?.message?.content?.trim() || "";
@@ -312,7 +315,10 @@ Deno.serve(async (req) => {
     // 1) Embedding zapytania — ten sam model co wpisy (text-embedding-3-small).
     let emb: number[];
     try { emb = await embedQuery(openaiKey, q); }
-    catch (e) { if (e instanceof EmbedError) return json({ error: e.message }, e.status); throw e; }
+    catch (e) {
+      if (e instanceof EmbedError) { console.error("embedQuery /search:", e.status, e.message); return json({ error: "Nie udało się przetworzyć zapytania." }, e.status); }
+      throw e;
+    }
 
     // 2) RRF (FTS + wektor) + doklejenie ostatnich N dni — w funkcji RPC.
     const { data, error } = await admin.rpc("hybrid_search", {
@@ -322,7 +328,7 @@ Deno.serve(async (req) => {
       match_count: matchCount,
       recent_days: recentDays,
     });
-    if (error) return json({ error: error.message }, 500);
+    if (error) { console.error("hybrid_search /search:", error); return json({ error: "Błąd wyszukiwania." }, 500); }
 
     // `source`: 'search' = trafienie wyszukiwania, 'recent' = kontekst 7 dni, 'both' = oba.
     const results = (data || []).map((r: any) => ({

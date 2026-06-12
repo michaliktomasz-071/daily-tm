@@ -101,9 +101,9 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: "text-embedding-3-small", input: lastUser }),
       });
-      if (!er.ok) return json({ error: (await er.text()) || `OpenAI HTTP ${er.status}` }, er.status);
+      if (!er.ok) { console.error("OpenAI embeddings:", er.status, await er.text()); return json({ error: "Nie udało się przetworzyć zapytania." }, er.status); }
       const emb = (await er.json())?.data?.[0]?.embedding;
-      if (!Array.isArray(emb)) return json({ error: "Nie udało się wygenerować embeddingu zapytania." }, 500);
+      if (!Array.isArray(emb)) return json({ error: "Nie udało się przetworzyć zapytania." }, 500);
 
       // 2) Wyszukiwanie hybrydowe (RRF) + ostatnie dni — ograniczone do tego użytkownika.
       const { data, error } = await admin.rpc("hybrid_search", {
@@ -113,10 +113,11 @@ Deno.serve(async (req) => {
         match_count: MATCH_COUNT,
         recent_days: RECENT_DAYS,
       });
-      if (error) return json({ error: error.message }, 500);
+      if (error) { console.error("hybrid_search chat:", error); return json({ error: "Błąd wyszukiwania kontekstu." }, 500); }
       retrieved = data || [];
     } catch (e) {
-      return json({ error: (e as Error).message || "Błąd wyszukiwania kontekstu." }, 500);
+      console.error("chat retrieval:", e);
+      return json({ error: "Błąd wyszukiwania kontekstu." }, 500);
     }
   }
 
@@ -141,8 +142,8 @@ Deno.serve(async (req) => {
   });
 
   if (!r.ok) {
-    const errTxt = await r.text();
-    return json({ error: errTxt || `Groq HTTP ${r.status}` }, r.status);
+    console.error("Groq chat:", r.status, await r.text());
+    return json({ error: "Asystent jest chwilowo niedostępny." }, r.status);
   }
 
   const data = await r.json();
