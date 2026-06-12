@@ -988,9 +988,10 @@
       const m = MOODS.find(x => x.key === key);
       return m ? m.label : key;
     }
-    // Buduje zwarty blok kontekstu dla agenta: policzone statystyki nastroju + lista wpisów.
-    // Liczymy po stronie klienta, żeby model nie zgadywał agregatów.
-    function buildJournalContext(entries) {
+    // Liczy zwarte statystyki nastroju z CAŁEGO dziennika (po stronie klienta, żeby model
+    // nie zgadywał agregatów). Same wpisy do kontekstu dobiera już serwer przez wyszukiwanie
+    // hybrydowe (RAG) na podstawie bieżącego pytania — tu nie wysyłamy całej treści.
+    function buildMoodStats(entries) {
       if (!entries || entries.length === 0) return "";
       const sorted = [...entries].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
       const n = sorted.length;
@@ -1015,17 +1016,7 @@
       if (distrib) statLines.push(`Rozkład nastrojów: ${distrib}.`);
       if (monthly) statLines.push(`Średni nastrój miesięcznie:\n${monthly}`);
 
-      const entriesText = sorted.map(e => {
-        const tags = (e.tags && e.tags.length) ? ` [tagi: ${e.tags.join(", ")}]` : "";
-        const title = (e.title || "").trim();
-        const body = (e.content || "").trim();
-        const trimmed = body.length > 1500 ? body.slice(0, 1500) + "…" : body;
-        return `• ${fmtLong(e.createdAt)} — nastrój: ${moodLabel(e.mood)}${tags}` +
-          (title ? `\n  Tytuł: ${title}` : "") +
-          (trimmed ? `\n  Treść: ${trimmed}` : "");
-      }).join("\n\n");
-
-      return "PODSUMOWANIE NASTROJU:\n" + statLines.join("\n") + "\n\nWPISY (od najstarszego):\n" + entriesText;
+      return statLines.join("\n");
     }
 
     /* =====================================================
@@ -1785,7 +1776,7 @@
             headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               messages: next.map(m => ({ role: m.role, content: m.content })),
-              journal: buildJournalContext(entries),
+              stats: buildMoodStats(entries),
             }),
           });
           if (!res.ok) { const t = await res.text(); throw new Error(t || `HTTP ${res.status}`); }
