@@ -41,9 +41,15 @@ dzienniczka w nagłówku aplikacji), w stylu dokumentacji Vercela.
 - `POST /entries` — dodaj wpis na dziś (`text` wymagane, `mood` 1–5 opcjonalne).
 - `POST /ask` — zapytaj asystenta (`question` wymagane, `date` opcjonalne).
 - `GET /entries?date=YYYY-MM-DD` — pobierz wpis dnia (domyślnie dziś).
+- `POST /search` — wyszukiwanie **hybrydowe** (pełnotekstowe + wektorowe, scalane RRF;
+  `q` wymagane, `match_count`/`recent_days` opcjonalne). Do wyników zawsze dokleja wpisy
+  z ostatnich `recent_days` dni (domyślnie 7). Każdy wynik ma `score` i `source`
+  (`search` / `recent` / `both`).
 
 Backend: Edge Function `api` (`supabase/functions/api/`), klucze w tabeli `api_keys`
-(przechowywany tylko hash).
+(przechowywany tylko hash). Wyszukiwanie semantyczne korzysta z embeddingów OpenAI
+`text-embedding-3-small` (kolumna `entries.embedding`, pgvector) i wymaga sekretu
+`OPENAI_API_KEY` w Edge Functions.
 
 ### Serwer MCP (dla agentów AI)
 
@@ -66,7 +72,7 @@ Aplikacja nie wymaga instalacji ani kroku budowania. Wystarczy otworzyć plik
 - `index.html` — cała aplikacja front-end (React + style, jeden plik).
 - `dock/index.html` — strona dokumentacji API (`/dock`).
 - `supabase/functions/chat/` — Edge Function Asystenta (proxy do Groq).
-- `supabase/functions/api/` — Edge Function publicznego API (3 endpointy).
+- `supabase/functions/api/` — Edge Function publicznego API (4 endpointy).
 - `mcp-server/` — serwer MCP (Vercel) — nakładka nad API dla agentów AI.
 - `PRD.md` — dokument wymagań produktowych.
 

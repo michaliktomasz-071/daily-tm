@@ -245,10 +245,11 @@ po stronie funkcji, dostęp do danych przez service role ograniczony do `user_id
 | `POST /entries`             | Dodaj wpis na dziś. Body: `text` (wymagane), `mood` 1–5 (opcjonalne; pominięty → nie ustawiany). Faza księżyca liczona z daty. |
 | `POST /ask`                 | Zapytaj asystenta. Body: `question` (wymagane), `date` YYYY-MM-DD (opcjonalne, domyślnie dziś). Kontekstem jest wpis z danego dnia. |
 | `GET /entries?date=…`       | Pobierz wpis(y) dnia (domyślnie dziś). Brak → `404`.                  |
+| `POST /search`              | Wyszukiwanie **hybrydowe**: pełnotekstowe (`tsvector` `simple`+`unaccent`) + wektorowe (pgvector, embeddingi OpenAI `text-embedding-3-small`) scalane metodą RRF w funkcji `hybrid_search`. Body: `q` (wymagane), `match_count` 1–100 (dom. 30), `recent_days` 0–90 (dom. 7). **Zawsze dokleja wpisy z ostatnich `recent_days` dni** (kontekst czasowy). Każdy wynik: `score` + `source` (`search` / `recent` / `both`). Wymaga sekretu `OPENAI_API_KEY`. |
 
 **Strona `/dock`:** statyczna (`dock/index.html`), w stylu dokumentacji Vercela
 (czarno-biała, zgodna z motywem aplikacji). Zawiera **wspólny pasek z generatorem
-klucza API** oraz dwie zakładki: **API** (pełny opis 3 endpointów: parametry,
+klucza API** oraz dwie zakładki: **API** (pełny opis 4 endpointów: parametry,
 przykłady curl/JS, odpowiedzi, sekcja maszynowa OpenAPI/`llms.txt`) i **MCP**
 (placeholder „wkrótce" — przyszła nakładka MCP nad tym samym API).
 

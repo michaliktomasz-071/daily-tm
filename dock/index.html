@@ -215,14 +215,16 @@
       <a href="#add">Dodaj wpis</a>
       <a href="#ask">Zapytaj asystenta</a>
       <a href="#get">Pobierz wpis</a>
+      <a href="#search">Szukaj (hybrydowo)</a>
       <div class="grouplabel">Dla agentów</div>
       <a href="#openapi">OpenAPI / llms.txt</a>
     </nav>
 
     <main>
       <h1 class="page">API dziennika</h1>
-      <p class="lead">Trzy proste endpointy REST, które pozwalają deweloperowi lub agentowi AI
-      pisać i czytać wpisy oraz rozmawiać z asystentem — w imieniu konkretnego użytkownika.</p>
+      <p class="lead">Cztery proste endpointy REST, które pozwalają deweloperowi lub agentowi AI
+      pisać i czytać wpisy, rozmawiać z asystentem oraz wyszukiwać hybrydowo (słowa + sens) —
+      w imieniu konkretnego użytkownika.</p>
 
       <section class="ep" id="start">
         <h3>Szybki start</h3>
@@ -349,6 +351,53 @@
   ]
 }</pre>
         </div>
+      </section>
+
+      <!-- 4. Szukaj hybrydowo -->
+      <section class="ep" id="search">
+        <h3><span class="badge post">POST</span> <span class="path">/search</span></h3>
+        <p>Wyszukiwanie <strong>hybrydowe</strong>: łączy wyszukiwanie pełnotekstowe (słowa kluczowe)
+        z wektorowym (znaczenie/semantyka) i scala wyniki metodą RRF. Dodatkowo do wyników
+        <strong>zawsze dokleja wpisy z ostatnich <code>recent_days</code> dni</strong> (domyślnie 7),
+        dla świeżego kontekstu czasowego — nawet jeśli nie pasują do zapytania.</p>
+        <table class="params">
+          <tr><th>Pole</th><th>Typ</th><th></th><th>Opis</th></tr>
+          <tr><td><code>q</code></td><td>string</td><td><span class="req">wymagane</span></td><td>Zapytanie użytkownika.</td></tr>
+          <tr><td><code>match_count</code></td><td>integer 1–100</td><td><span class="opt">opcjonalne</span></td><td>Ile trafień brać z każdej metody przed scaleniem. Domyślnie 30.</td></tr>
+          <tr><td><code>recent_days</code></td><td>integer 0–90</td><td><span class="opt">opcjonalne</span></td><td>Okno kontekstu czasowego doklejanego zawsze. Domyślnie 7. <code>0</code> = wyłącz.</td></tr>
+        </table>
+        <div class="codeblock">
+          <div class="label">curl</div>
+          <button class="btn sm copy" data-copy="#cb-search-curl">Kopiuj</button>
+          <pre id="cb-search-curl"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="label">Odpowiedź 200</div>
+          <button class="btn sm copy" data-copy="#cb-search-res">Kopiuj</button>
+          <pre id="cb-search-res">{
+  "query": "wypalenie w zespole",
+  "count": 18,
+  "recent_days": 7,
+  "results": [
+    {
+      "id": "2bnganhbximmqak9jbm",
+      "title": "",
+      "content": "Zaczął się problem wypalenia — ciągła zmiana zabija…",
+      "mood": 3,
+      "mood_key": "neutral",
+      "tags": [],
+      "moon_phase": "full",
+      "created_at": "2026-05-07T00:00:00+00:00",
+      "score": 0.0196,
+      "source": "search"
+    }
+  ]
+}</pre>
+        </div>
+        <div class="callout"><code>source</code> mówi, skąd pochodzi wynik:
+        <code>search</code> = trafienie wyszukiwania, <code>recent</code> = kontekst z ostatnich dni,
+        <code>both</code> = jedno i drugie. Wyniki są posortowane malejąco po <code>score</code>
+        (kontekst-only ma <code>score</code> 0 i trafia na koniec).</div>
       </section>
 
       <!-- Dla agentów -->
@@ -535,6 +584,11 @@
     fill("cb-get-curl",
 `curl "${API_BASE}/entries?date=2026-06-11" \\
   -H "Authorization: Bearer ${KEY_PLACEHOLDER}"`);
+    fill("cb-search-curl",
+`curl -X POST "${API_BASE}/search" \\
+  -H "Authorization: Bearer ${KEY_PLACEHOLDER}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"q":"wypalenie w zespole","match_count":30,"recent_days":7}'`);
     fill("cb-llms",
 `# dziennik. API
 Bazowy URL: ${API_BASE}
@@ -542,7 +596,10 @@ Uwierzytelnianie: nagłówek "Authorization: Bearer dtm_…" (długożyciowy klu
 
 POST /entries   — dodaj wpis na dziś. Body: {text:string (wymagane), mood?:1..5}. Zwraca utworzony wpis.
 POST /ask       — zapytaj asystenta. Body: {question:string (wymagane), date?:YYYY-MM-DD}. Zwraca {reply,...}.
-GET  /entries   — pobierz wpis dnia. Query: date?=YYYY-MM-DD (domyślnie dziś). 404 gdy brak.`);
+GET  /entries   — pobierz wpis dnia. Query: date?=YYYY-MM-DD (domyślnie dziś). 404 gdy brak.
+POST /search    — wyszukiwanie hybrydowe (słowa + semantyka, RRF) + zawsze ostatnie recent_days dni.
+                  Body: {q:string (wymagane), match_count?:1..100 (dom. 30), recent_days?:0..90 (dom. 7)}.
+                  Zwraca {query,count,recent_days,results:[{...wpis, score, source:"search|recent|both"}]}.`);
     const openapi = {
       openapi: "3.1.0",
       info: { title: "dziennik. API", version: "1.0.0", description: "Per-użytkownik API dziennika DAILY TM." },
@@ -587,6 +644,35 @@ GET  /entries   — pobierz wpis dnia. Query: date?=YYYY-MM-DD (domyślnie dziś
               properties: { question: { type: "string" }, date: { type: "string", format: "date" } }
             } } } },
             responses: { "200": { description: "Odpowiedź asystenta" }, "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" } }
+          }
+        },
+        "/search": {
+          post: {
+            summary: "Wyszukiwanie hybrydowe (FTS + wektor, RRF) + kontekst ostatnich dni",
+            requestBody: { required: true, content: { "application/json": { schema: {
+              type: "object", required: ["q"],
+              properties: {
+                q: { type: "string" },
+                match_count: { type: "integer", minimum: 1, maximum: 100, default: 30 },
+                recent_days: { type: "integer", minimum: 0, maximum: 90, default: 7 }
+              }
+            } } } },
+            responses: {
+              "200": { description: "Wyniki wyszukiwania", content: { "application/json": { schema: {
+                type: "object",
+                properties: {
+                  query: { type: "string" }, count: { type: "integer" }, recent_days: { type: "integer" },
+                  results: { type: "array", items: { allOf: [
+                    { $ref: "#/components/schemas/Entry" },
+                    { type: "object", properties: {
+                      score: { type: "number" },
+                      source: { type: "string", enum: ["search", "recent", "both"] }
+                    } }
+                  ] } }
+                }
+              } } } },
+              "400": { description: "Błędne dane" }, "401": { description: "Brak/zły klucz" }, "500": { description: "Brak OPENAI_API_KEY lub błąd OpenAI" }
+            }
           }
         }
       }

@@ -63,6 +63,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Liczba całkowita przycięta do [min, max]; wartość spoza zakresu/nie-liczba → default.
+function clampInt(v: unknown, min: number, max: number, def: number): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(max, Math.max(min, Math.trunc(n)));
+}
+
 async function sha256hex(text: string): Promise<string> {
   const buf = await crypto.subtle.digest(
     "SHA-256",
@@ -255,6 +262,55 @@ Deno.serve(async (req) => {
     const out = await r.json();
     const reply = out?.choices?.[0]?.message?.content?.trim() || "";
     return json({ reply, model: MODEL, date: day, entries_used: entries.length }, 200);
+  }
+
+  // 4) POST /api/search — wyszukiwanie hybrydowe (FTS + wektor, scalane RRF)
+  //    + zawsze doklejone wpisy z ostatnich `recent_days` dni (kontekst czasowy).
+  if (method === "POST" && path === "/search") {
+    let body: any;
+    try { body = await req.json(); } catch { return json({ error: "Nieprawidłowy JSON" }, 400); }
+
+    const q = typeof body?.q === "string" ? body.q.trim() : "";
+    if (!q) return json({ error: "Pole 'q' jest wymagane." }, 400);
+
+    const matchCount = clampInt(body?.match_count, 1, 100, 30);
+    const recentDays = clampInt(body?.recent_days, 0, 90, 7);
+
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) return json({ error: "OPENAI_API_KEY nie jest skonfigurowany" }, 500);
+
+    // 1) Embedding zapytania — ten sam model co wpisy (text-embedding-3-small).
+    const er = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: q }),
+    });
+    if (!er.ok) {
+      const errTxt = await er.text();
+      return json({ error: errTxt || `OpenAI HTTP ${er.status}` }, er.status);
+    }
+    const emb = (await er.json())?.data?.[0]?.embedding;
+    if (!Array.isArray(emb)) {
+      return json({ error: "Nie udało się wygenerować embeddingu zapytania." }, 500);
+    }
+
+    // 2) RRF (FTS + wektor) + doklejenie ostatnich N dni — w funkcji RPC.
+    const { data, error } = await admin.rpc("hybrid_search", {
+      query_text: q,
+      query_embedding: emb,
+      p_user_id: userId,
+      match_count: matchCount,
+      recent_days: recentDays,
+    });
+    if (error) return json({ error: error.message }, 500);
+
+    // `source`: 'search' = trafienie wyszukiwania, 'recent' = kontekst 7 dni, 'both' = oba.
+    const results = (data || []).map((r: any) => ({
+      ...entryView(r),
+      score: Number(r.score) || 0,
+      source: r.source,
+    }));
+    return json({ query: q, count: results.length, recent_days: recentDays, results }, 200);
   }
 
   return json({ error: `Nieznana ścieżka: ${method} ${path || "/"}` }, 404);
